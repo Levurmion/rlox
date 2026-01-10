@@ -32,16 +32,16 @@ pub struct Token {
 }
 
 #[derive(Debug)]
-pub struct Lexer<'a> {
+pub struct Lexer {
     pub tokens: Vec<Token>,
-    input: &'a str,
+    input: String,
     pos: usize,
     row: usize,
     col: usize,
 }
 
-impl Lexer<'_> {
-    pub fn new(input: &str) -> Lexer<'_> {
+impl Lexer {
+    pub fn new(input: String) -> Lexer {
         Lexer {
             tokens: Vec::new(),
             input,
@@ -121,7 +121,7 @@ impl Lexer<'_> {
     fn scan_binary_op(&mut self, lexeme: String) -> Result<(), LexerError> {
         match lexeme.as_str() {
             "+" => self.push_token(TokenType::Add, &lexeme),
-            "_" => self.push_token(TokenType::Sub, &lexeme),
+            "-" => self.push_token(TokenType::Sub, &lexeme),
             "/" => self.push_token(TokenType::Div, &lexeme),
             "*" => self.push_token(TokenType::Mul, &lexeme),
             _ => return Err(self.create_unexpected_char_err(&lexeme)),
@@ -156,8 +156,8 @@ impl Lexer<'_> {
         }
 
         let delta = end - self.pos;
-        let lexeme = self.input.get(self.pos..end).unwrap();
-        self.push_token(TokenType::NumericLit, lexeme);
+        let lexeme = self.input.get(self.pos..end).unwrap().to_string();
+        self.push_token(TokenType::NumericLit, &lexeme);
         self.pos += delta;
 
         Ok(())
@@ -167,6 +167,7 @@ impl Lexer<'_> {
         while self.pos < self.input.len() {
             let lexeme = self.peek()?;
             match lexeme {
+                " " => self.advance(1),
                 "\n" => self.new_line(),
                 ";" | "(" | ")" => self.scan_delimiter(lexeme.to_string())?,
                 "+" | "-" | "/" | "*" => self.scan_binary_op(lexeme.to_string())?,
@@ -174,6 +175,8 @@ impl Lexer<'_> {
                 _ => return Err(self.create_unexpected_char_err(lexeme)),
             }
         }
+
+        self.push_token(TokenType::EoF, "");
 
         Ok(())
     }

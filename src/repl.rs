@@ -5,11 +5,11 @@ pub enum EvaluatorOk {
     Append(String),
 }
 pub trait Evaluator {
-    fn eval(&mut self, input: &str) -> Result<EvaluatorOk, String>;
+    fn eval(&mut self, input: String) -> Result<EvaluatorOk, String>;
 }
 
 pub struct Repl<'a, E: Evaluator> {
-    line: String,
+    lines: String,
     stdin: io::Stdin,
     stdout: io::Stdout,
     evaluator: &'a mut E,
@@ -18,7 +18,7 @@ pub struct Repl<'a, E: Evaluator> {
 impl<'a, E: Evaluator> Repl<'a, E> {
     pub fn new(evaluator: &'a mut E) -> Repl<'a, E> {
         Repl {
-            line: String::new(),
+            lines: String::new(),
             stdin: io::stdin(),
             stdout: io::stdout(),
             evaluator,
@@ -32,12 +32,12 @@ impl<'a, E: Evaluator> Repl<'a, E> {
             print!(">> ");
             self.stdout.flush()?;
 
-            let n = self.stdin.read_line(&mut self.line)?;
+            let n = self.stdin.read_line(&mut self.lines)?;
             if n == 0 {
                 break;
             }
 
-            let input = self.line.trim();
+            let input = self.lines.trim();
             if input.is_empty() {
                 continue;
             }
@@ -45,18 +45,21 @@ impl<'a, E: Evaluator> Repl<'a, E> {
                 break;
             }
 
-            match self.evaluator.eval(input) {
+            match self.evaluator.eval(input.to_string()) {
                 Ok(result) => {
                     let eval_result = match result {
                         EvaluatorOk::Clear(msg) => {
-                            self.line.clear();
+                            self.lines.clear();
                             msg
                         }
                         EvaluatorOk::Append(msg) => msg,
                     };
-                    println!("{eval_result}");
+                    println!("{eval_result}\n");
                 }
-                Err(error) => println!("eval error: {error}"),
+                Err(error) => {
+                    self.lines.clear();
+                    eprintln!("eval error: {error}\n")
+                }
             };
         }
 
