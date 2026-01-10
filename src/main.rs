@@ -1,5 +1,6 @@
 use crate::repl::{Evaluator, EvaluatorOk, Repl};
 
+mod lexer;
 mod repl;
 
 struct Printer {}
