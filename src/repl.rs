@@ -1,0 +1,66 @@
+use std::io::{self, Write};
+
+pub enum EvaluatorOk {
+    Clear(String),
+    Append(String),
+}
+pub trait Evaluator {
+    fn eval(&mut self, input: &str) -> Result<EvaluatorOk, String>;
+}
+
+pub struct Repl<'a, E: Evaluator> {
+    line: String,
+    stdin: io::Stdin,
+    stdout: io::Stdout,
+    evaluator: &'a mut E,
+}
+
+impl<'a, E: Evaluator> Repl<'a, E> {
+    pub fn new(evaluator: &'a mut E) -> Repl<'a, E> {
+        Repl {
+            line: String::new(),
+            stdin: io::stdin(),
+            stdout: io::stdout(),
+            evaluator,
+        }
+    }
+
+    pub fn start(&mut self, welcome_message: &str) -> io::Result<()> {
+        println!("{welcome_message}");
+
+        loop {
+            print!(">> ");
+            self.stdout.flush()?;
+
+            let n = self.stdin.read_line(&mut self.line)?;
+            if n == 0 {
+                break;
+            }
+
+            let input = self.line.trim();
+            if input.is_empty() {
+                continue;
+            }
+            if matches!(input, "exit" | "kill") {
+                break;
+            }
+
+            match self.evaluator.eval(input) {
+                Ok(result) => {
+                    let eval_result = match result {
+                        EvaluatorOk::Clear(msg) => {
+                            self.line.clear();
+                            msg
+                        }
+                        EvaluatorOk::Append(msg) => msg,
+                    };
+                    println!("{eval_result}");
+                }
+                Err(error) => println!("eval error: {error}"),
+            };
+        }
+
+        println!("Terminating REPL, bye bye!");
+        Ok(())
+    }
+}
