@@ -1,13 +1,18 @@
-use std::result;
+use std::{cell::Ref, result};
 
 use crate::{
-    lexer::{Lexer, LexerError},
+    lexer::{Lexer, LexerError, Token},
+    parser::{
+        ast::{AstNode, ParserError},
+        parser::Parser,
+    },
     repl::{Evaluator, EvaluatorOk},
 };
 
 #[derive(Debug)]
 pub enum InterpreterError {
     Lexer(LexerError),
+    ParsingError(String),
 }
 
 pub struct Interpreter {
@@ -27,8 +32,25 @@ impl Interpreter {
             Err(lexer_err) => return Err(InterpreterError::Lexer(lexer_err)),
             _ => ..,
         };
+        let mut parser = Parser::new(&self.lexer.tokens);
 
-        Ok(format!("{:#?}", self.lexer.tokens))
+        match parser.parse() {
+            Err(num) => Err(InterpreterError::ParsingError(format!(
+                "Found {:?} errors: {:?}",
+                num,
+                parser
+                    .errors
+                    .iter()
+                    .map(|e| {
+                        match &*e.borrow() {
+                            AstNode::ErrorNode { error, token } => (error.clone(), token.clone()),
+                            _ => panic!("Expected error nodes only."),
+                        }
+                    })
+                    .collect::<Vec<(ParserError, Option<Token>)>>()
+            ))),
+            Ok(_) => Ok(format!("{:#?}", parser.ast)),
+        }
     }
 }
 

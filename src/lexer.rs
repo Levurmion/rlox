@@ -1,34 +1,49 @@
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct TokenMeta {
     row: usize,
     col: usize,
 }
 
-#[derive(Debug)]
-pub enum TokenType {
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DelimToken {
     Semicolon,
-    LeftParen,
-    RightParen,
-    NumericLit,
-    Add,
-    Sub,
-    Div,
-    Mul,
     EoF,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum OpToken {
+    LeftParen,
+    RightParen,
+    Plus,
+    Min,
+    Slash,
+    Star,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AtomToken {
+    NumericLit,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TokenClass {
+    Delim(DelimToken),
+    Op(OpToken),
+    Atom(AtomToken),
+}
+
+#[derive(Debug, Clone)]
 pub enum LexerError {
     UnexpectedEndOfFile { meta: TokenMeta },
     UnexpectedCharacter { char: String, meta: TokenMeta },
     InvalidNumericLit { char: String, meta: TokenMeta },
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Token {
-    token_type: TokenType,
-    lexeme: String,
-    meta: TokenMeta,
+    pub token_class: TokenClass,
+    pub lexeme: String,
+    pub meta: TokenMeta,
 }
 
 #[derive(Debug)]
@@ -96,9 +111,9 @@ impl Lexer {
         }
     }
 
-    fn push_token(&mut self, token_type: TokenType, lexeme: &str) {
+    fn push_token(&mut self, token_class: TokenClass, lexeme: &str) {
         self.tokens.push(Token {
-            token_type,
+            token_class,
             lexeme: lexeme.to_string(),
             meta: TokenMeta {
                 row: self.row,
@@ -109,9 +124,17 @@ impl Lexer {
 
     fn scan_delimiter(&mut self, lexeme: String) -> Result<(), LexerError> {
         match lexeme.as_str() {
-            ";" => self.push_token(TokenType::Semicolon, &lexeme),
-            "(" => self.push_token(TokenType::LeftParen, &lexeme),
-            ")" => self.push_token(TokenType::RightParen, &lexeme),
+            ";" => self.push_token(TokenClass::Delim(DelimToken::Semicolon), &lexeme),
+            _ => return Err(self.create_unexpected_char_err(&lexeme)),
+        }
+        self.advance(lexeme.len());
+        Ok(())
+    }
+
+    fn scan_op(&mut self, lexeme: String) -> Result<(), LexerError> {
+        match lexeme.as_str() {
+            "(" => self.push_token(TokenClass::Op(OpToken::LeftParen), &lexeme),
+            ")" => self.push_token(TokenClass::Op(OpToken::RightParen), &lexeme),
             _ => return Err(self.create_unexpected_char_err(&lexeme)),
         }
         self.advance(lexeme.len());
@@ -120,10 +143,10 @@ impl Lexer {
 
     fn scan_binary_op(&mut self, lexeme: String) -> Result<(), LexerError> {
         match lexeme.as_str() {
-            "+" => self.push_token(TokenType::Add, &lexeme),
-            "-" => self.push_token(TokenType::Sub, &lexeme),
-            "/" => self.push_token(TokenType::Div, &lexeme),
-            "*" => self.push_token(TokenType::Mul, &lexeme),
+            "+" => self.push_token(TokenClass::Op(OpToken::Plus), &lexeme),
+            "-" => self.push_token(TokenClass::Op(OpToken::Min), &lexeme),
+            "/" => self.push_token(TokenClass::Op(OpToken::Slash), &lexeme),
+            "*" => self.push_token(TokenClass::Op(OpToken::Star), &lexeme),
             _ => return Err(self.create_unexpected_char_err(&lexeme)),
         }
         self.advance(lexeme.len());
@@ -157,7 +180,7 @@ impl Lexer {
 
         let delta = end - self.pos;
         let lexeme = self.input.get(self.pos..end).unwrap().to_string();
-        self.push_token(TokenType::NumericLit, &lexeme);
+        self.push_token(TokenClass::Atom(AtomToken::NumericLit), &lexeme);
         self.pos += delta;
 
         Ok(())
@@ -169,14 +192,15 @@ impl Lexer {
             match lexeme {
                 " " => self.advance(1),
                 "\n" => self.new_line(),
-                ";" | "(" | ")" => self.scan_delimiter(lexeme.to_string())?,
+                ";" => self.scan_delimiter(lexeme.to_string())?,
+                "(" | ")" => self.scan_op(lexeme.to_string())?,
                 "+" | "-" | "/" | "*" => self.scan_binary_op(lexeme.to_string())?,
                 "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" => self.scan_num_lit()?,
                 _ => return Err(self.create_unexpected_char_err(lexeme)),
             }
         }
 
-        self.push_token(TokenType::EoF, "");
+        self.push_token(TokenClass::Delim(DelimToken::EoF), "");
 
         Ok(())
     }
