@@ -181,7 +181,7 @@ impl Lexer {
         let delta = end - self.pos;
         let lexeme = self.input.get(self.pos..end).unwrap().to_string();
         self.push_token(TokenClass::Atom(AtomToken::NumericLit), &lexeme);
-        self.pos += delta;
+        self.advance(delta);
 
         Ok(())
     }

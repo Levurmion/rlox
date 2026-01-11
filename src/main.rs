@@ -3,8 +3,10 @@ use crate::{
     repl::{Evaluator, EvaluatorOk, Repl},
 };
 
+mod compiler;
 mod interpreter;
 mod lexer;
+mod macros;
 mod parser;
 mod repl;
 

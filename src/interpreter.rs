@@ -1,6 +1,8 @@
-use std::{cell::Ref, result};
+use std::{cell::Ref, fmt::format, rc::Rc, result};
 
 use crate::{
+    compiler::{Compiler, CompilerError},
+    debug,
     lexer::{Lexer, LexerError, Token},
     parser::{
         ast::{AstNode, ParserError},
@@ -11,45 +13,43 @@ use crate::{
 
 #[derive(Debug)]
 pub enum InterpreterError {
-    Lexer(LexerError),
-    ParsingError(String),
+    Compiler(CompilerError),
 }
 
 pub struct Interpreter {
-    lexer: Lexer,
+    compiler: Compiler,
 }
 
 impl Interpreter {
     pub fn new() -> Interpreter {
         Interpreter {
-            lexer: Lexer::new(String::from("")),
+            compiler: Compiler::new(),
+        }
+    }
+
+    fn pretty_print(&self, ast: &Box<AstNode>) -> String {
+        match ast.as_ref() {
+            AstNode::NumericLit { value, .. } => value.to_string(),
+            AstNode::BinaryExpr { op, left, right } => {
+                format!(
+                    "({} {} {})",
+                    op.lexeme,
+                    self.pretty_print(left),
+                    self.pretty_print(right)
+                )
+            }
+            AstNode::UnaryExpr { op, operand } => {
+                format!("({} {})", op.lexeme, self.pretty_print(operand))
+            }
+            AstNode::Expr { expr, .. } => format!("[{}]", self.pretty_print(expr)),
+            AstNode::Empty => String::from("Empty"),
         }
     }
 
     pub fn interpret(&mut self, input: String) -> Result<String, InterpreterError> {
-        self.lexer = Lexer::new(input);
-        match self.lexer.tokenize() {
-            Err(lexer_err) => return Err(InterpreterError::Lexer(lexer_err)),
-            _ => ..,
-        };
-        let mut parser = Parser::new(&self.lexer.tokens);
-
-        match parser.parse() {
-            Err(num) => Err(InterpreterError::ParsingError(format!(
-                "Found {:?} errors: {:?}",
-                num,
-                parser
-                    .errors
-                    .iter()
-                    .map(|e| {
-                        match &*e.borrow() {
-                            AstNode::ErrorNode { error, token } => (error.clone(), token.clone()),
-                            _ => panic!("Expected error nodes only."),
-                        }
-                    })
-                    .collect::<Vec<(ParserError, Option<Token>)>>()
-            ))),
-            Ok(_) => Ok(format!("{:#?}", parser.ast)),
+        match self.compiler.compile(input) {
+            Ok(ast) => Ok(self.pretty_print(&ast)),
+            Err(err) => Err(InterpreterError::Compiler(err)),
         }
     }
 }

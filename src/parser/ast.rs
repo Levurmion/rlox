@@ -4,35 +4,31 @@ use crate::lexer::Token;
 
 #[derive(Debug, Clone)]
 pub enum ParserError {
-    ExpectedEoF,
-    ExpectedExpression,
-    ExpectedOpToken,
-    UnclosedExpression,
     UnexpectedEndOfTokenStream,
-    UnexpectedToken,
-    UnexpectedUnaryOperator,
-    UnhandledToken,
+    ExpectedEoF { token: Token },
+    ExpectedExpression { token: Token },
+    ExpectedOpToken { token: Token },
+    UnclosedExpression { token: Token },
+    UnexpectedToken { token: Token },
+    UnexpectedUnaryOperator { token: Token },
+    UnhandledToken { token: Token },
 }
 
 #[derive(Debug)]
 pub enum AstNode {
     Empty,
-    ErrorNode {
-        error: ParserError,
-        token: Option<Token>,
-    },
     Expr {
         token: Token,
-        expr: Rc<RefCell<AstNode>>,
+        expr: Box<AstNode>,
     },
     BinaryExpr {
         op: Token,
-        left: Rc<RefCell<AstNode>>,
-        right: Rc<RefCell<AstNode>>,
+        left: Box<AstNode>,
+        right: Box<AstNode>,
     },
     UnaryExpr {
         op: Token,
-        operand: Rc<RefCell<AstNode>>,
+        operand: Box<AstNode>,
     },
     NumericLit {
         token: Token,
