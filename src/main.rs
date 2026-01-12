@@ -1,7 +1,4 @@
-use crate::{
-    interpreter::Interpreter,
-    repl::{Evaluator, EvaluatorOk, Repl},
-};
+use crate::{interpreter::Interpreter, repl::Repl};
 
 mod compiler;
 mod interpreter;

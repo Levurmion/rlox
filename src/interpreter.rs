@@ -1,5 +1,9 @@
 use crate::{
-    compiler::{Chunk, Compiler, CompilerError, OpCode, Value},
+    compiler::{
+        chunk::Chunk,
+        compiler::{Compiler, CompilerError},
+        op_code::{OpCode, Value},
+    },
     repl::{Evaluator, EvaluatorOk},
 };
 
