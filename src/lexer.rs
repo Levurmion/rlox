@@ -18,11 +18,18 @@ pub enum OpToken {
     Min,
     Slash,
     Star,
+    Eq,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AtomToken {
     NumericLit,
+    Identifier,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum KeywordToken {
+    Let,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -30,6 +37,7 @@ pub enum TokenClass {
     Delim(DelimToken),
     Op(OpToken),
     Atom(AtomToken),
+    Keyword(KeywordToken),
 }
 
 #[derive(Debug, Clone)]
@@ -135,6 +143,7 @@ impl Lexer {
         match lexeme.as_str() {
             "(" => self.push_token(TokenClass::Op(OpToken::LeftParen), &lexeme),
             ")" => self.push_token(TokenClass::Op(OpToken::RightParen), &lexeme),
+            "=" => self.push_token(TokenClass::Op(OpToken::Eq), &lexeme),
             _ => return Err(self.create_unexpected_char_err(&lexeme)),
         }
         self.advance(lexeme.len());
@@ -181,6 +190,38 @@ impl Lexer {
         let delta = end - self.pos;
         let lexeme = self.input.get(self.pos..end).unwrap().to_string();
         self.push_token(TokenClass::Atom(AtomToken::NumericLit), &lexeme);
+        self.advance(delta);
+
+        Ok(())
+    }
+
+    fn scan_keyword(&mut self) -> Result<(), LexerError> {
+        let lexeme = self.peek()?;
+        match lexeme {
+            "l" if self.input.get(self.pos..self.pos + 3) == Some("let") => {
+                self.push_token(TokenClass::Keyword(KeywordToken::Let), "let");
+                self.advance(3);
+            }
+            _ => self.scan_identifier()?,
+        }
+
+        Ok(())
+    }
+
+    fn scan_identifier(&mut self) -> Result<(), LexerError> {
+        let mut end = self.pos + 1;
+
+        while end < self.input.len() {
+            let curr = self.peek_at(end)?;
+            match curr {
+                " " => break,
+                _ => end += 1,
+            }
+        }
+
+        let delta = end - self.pos;
+        let lexeme = self.input.get(self.pos..end).unwrap().to_string();
+        self.push_token(TokenClass::Atom(AtomToken::Identifier), &lexeme);
         self.advance(delta);
 
         Ok(())
