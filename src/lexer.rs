@@ -1,5 +1,5 @@
 #[derive(Debug, Clone)]
-struct TokenMeta {
+pub struct TokenMeta {
     row: usize,
     col: usize,
 }

@@ -111,7 +111,7 @@ impl<'a> Parser<'a> {
 
             let rhs = self.parse_expr(r_bp)?;
             lhs = Box::new(AstNode::BinaryExpr {
-                op: consumed_op_token,
+                token: consumed_op_token,
                 left: lhs,
                 right: rhs,
             })
@@ -140,7 +140,7 @@ impl<'a> Parser<'a> {
         let (_, right_bp) = infix_bp(op).unwrap();
         let operand = self.parse_expr(right_bp)?;
         Ok(Box::new(AstNode::UnaryExpr {
-            op: token.clone(),
+            token: token.clone(),
             operand,
         }))
     }

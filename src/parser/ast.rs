@@ -22,12 +22,12 @@ pub enum AstNode {
         expr: Box<AstNode>,
     },
     BinaryExpr {
-        op: Token,
+        token: Token,
         left: Box<AstNode>,
         right: Box<AstNode>,
     },
     UnaryExpr {
-        op: Token,
+        token: Token,
         operand: Box<AstNode>,
     },
     NumericLit {
