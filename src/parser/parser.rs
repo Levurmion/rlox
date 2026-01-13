@@ -1,5 +1,5 @@
 use crate::{
-    lexer::{AtomToken, DelimToken, OpToken, Token, TokenClass},
+    lexer::{AtomToken, DelimToken, KeywordToken, OpToken, Token, TokenClass},
     parser::ast::{AstNode, ParserError},
 };
 
@@ -25,6 +25,7 @@ impl<'a> Parser<'a> {
         Parser { tokens, pos: 0 }
     }
 
+    // utilities
     fn peek(&self) -> Result<&Token, ParserError> {
         match self.tokens.get(self.pos) {
             None => Err(ParserError::UnexpectedEndOfTokenStream),
@@ -38,6 +39,28 @@ impl<'a> Parser<'a> {
         Ok(consumed)
     }
 
+    fn consume_expecting(&mut self, expected: TokenClass) -> Result<Token, ParserError> {
+        let consumed = self.consume()?;
+        if consumed.token_class == expected {
+            return Ok(consumed);
+        }
+        Err(ParserError::UnexpectedToken {
+            token: consumed,
+            expected: Some(expected),
+        })
+    }
+
+    pub fn recover(&mut self, to_token: TokenClass) {
+        loop {
+            match self.peek() {
+                Ok(token) if token.token_class == to_token => break,
+                Err(_) => break,
+                _ => self.pos += 1,
+            }
+        }
+    }
+
+    // parsing
     pub fn parse(&mut self) -> ParseResult {
         let program = self.parse_tokens()?;
         match self.consume() {
@@ -51,25 +74,38 @@ impl<'a> Parser<'a> {
         let token = self.peek()?;
         match token.token_class {
             TokenClass::Atom(_) | TokenClass::Op(_) => self.parse_expr(0.0),
+            _ => self.parse_stmt(),
+        }
+    }
+
+    // statements
+    fn parse_stmt(&mut self) -> ParseResult {
+        let token = self.consume()?;
+        let statement = match token.token_class {
+            TokenClass::Keyword(KeywordToken::Let) => self.parse_variable_assignment_stmt()?,
             _ => todo!(),
-        }
+        };
+        self.consume_expecting(TokenClass::Delim(DelimToken::Semicolon))?;
+        Ok(statement)
     }
 
-    pub fn recover(&mut self, to_token: TokenClass) {
-        loop {
-            match self.peek() {
-                Ok(token) if token.token_class == to_token => break,
-                Err(_) => break,
-                _ => self.pos += 1,
-            }
-        }
+    fn parse_variable_assignment_stmt(&mut self) -> ParseResult {
+        let token = self.consume_expecting(TokenClass::Atom(AtomToken::Identifier))?;
+        self.consume_expecting(TokenClass::Op(OpToken::Eq))?;
+        Ok(Box::new(AstNode::VariableAssignmentStmt {
+            identifier: token.lexeme.clone(),
+            token,
+            expression: self.parse_expr(0.0)?,
+        }))
     }
 
+    // pratt-parsing binary operators
     fn parse_expr(&mut self, min_bp: f32) -> ParseResult {
         let lhs_token = self.consume()?;
         let mut lhs = match lhs_token.token_class {
             TokenClass::Atom(ref atom) => match atom {
                 AtomToken::NumericLit => self.parse_numeric_lit(&lhs_token),
+                AtomToken::Identifier => self.parse_identifier(&lhs_token),
             },
             TokenClass::Op(ref op) => match op {
                 OpToken::Min => self.parse_unary_expr(&lhs_token),
@@ -83,6 +119,7 @@ impl<'a> Parser<'a> {
             _ => {
                 return Err(ParserError::UnexpectedToken {
                     token: lhs_token.clone(),
+                    expected: None,
                 });
             }
         }?;
@@ -90,8 +127,12 @@ impl<'a> Parser<'a> {
         loop {
             let op_token = self.peek()?;
             let infix_op = match &op_token.token_class {
+                TokenClass::Delim(delim)
+                    if matches!(delim, DelimToken::EoF | DelimToken::Semicolon) =>
+                {
+                    break;
+                }
                 TokenClass::Op(op) => op,
-                TokenClass::Delim(delim) if *delim == DelimToken::EoF => break,
                 _ => {
                     return Err(ParserError::ExpectedOpToken {
                         token: op_token.clone(),
@@ -124,6 +165,13 @@ impl<'a> Parser<'a> {
         Ok(Box::new(AstNode::NumericLit {
             token: token.clone(),
             value: token.lexeme.parse().unwrap(),
+        }))
+    }
+
+    fn parse_identifier(&self, token: &Token) -> ParseResult {
+        Ok(Box::new(AstNode::VariableAccessExpr {
+            token: token.clone(),
+            identifier: token.lexeme.parse().unwrap(),
         }))
     }
 

@@ -62,9 +62,9 @@ impl Compiler {
         self.chunk.tokens.push(token.clone());
     }
 
-    fn add_constant(&mut self, value: &Value, token: &Token) {
+    fn add_constant(&mut self, value: Value, token: &Token) {
         self.chunk.code.push(self.chunk.constants.len());
-        self.chunk.constants.push(*value);
+        self.chunk.constants.push(value);
         self.chunk.tokens.push(token.clone());
     }
 
@@ -73,7 +73,7 @@ impl Compiler {
             AstNode::Empty => {}
             AstNode::NumericLit { token, value } => {
                 self.add_instruction(OpCode::Constant, token);
-                self.add_constant(value, token);
+                self.add_constant(Value::Number(*value), token);
             }
             AstNode::Expr { expr, .. } => {
                 self.compile_ast(expr)?;
@@ -103,6 +103,20 @@ impl Compiler {
                     },
                     _ => return Err(CompileError::ExpectedOpNode),
                 }
+            }
+            AstNode::Stmt { statement, .. } => self.compile_ast(statement)?,
+            AstNode::VariableAssignmentStmt {
+                token,
+                identifier,
+                expression,
+            } => {
+                self.compile_ast(expression)?;
+                self.add_instruction(OpCode::SetVar, token);
+                self.add_constant(Value::String(identifier.clone()), token);
+            }
+            AstNode::VariableAccessExpr { token, identifier } => {
+                self.add_instruction(OpCode::GetVar, token);
+                self.add_constant(Value::String(identifier.clone()), token);
             }
         }
 

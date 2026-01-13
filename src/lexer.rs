@@ -234,10 +234,10 @@ impl Lexer {
                 " " => self.advance(1),
                 "\n" => self.new_line(),
                 ";" => self.scan_delimiter(lexeme.to_string())?,
-                "(" | ")" => self.scan_op(lexeme.to_string())?,
+                "(" | ")" | "=" => self.scan_op(lexeme.to_string())?,
                 "+" | "-" | "/" | "*" => self.scan_binary_op(lexeme.to_string())?,
                 "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" => self.scan_num_lit()?,
-                _ => return Err(self.create_unexpected_char_err(lexeme)),
+                _ => self.scan_keyword()?,
             }
         }
 

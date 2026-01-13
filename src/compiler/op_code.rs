@@ -7,6 +7,8 @@ pub enum OpCode {
     Multiply = 3,
     Divide = 4,
     Negate = 5,
+    SetVar = 6,
+    GetVar = 7,
 }
 
 impl OpCode {
@@ -18,6 +20,8 @@ impl OpCode {
             3 => Some(OpCode::Multiply),
             4 => Some(OpCode::Divide),
             5 => Some(OpCode::Negate),
+            6 => Some(OpCode::SetVar),
+            7 => Some(OpCode::GetVar),
             _ => None,
         }
     }
@@ -28,4 +32,8 @@ impl OpCode {
     }
 }
 
-pub type Value = f64;
+#[derive(Debug, Clone)]
+pub enum Value {
+    Number(f64),
+    String(String),
+}
