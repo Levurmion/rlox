@@ -113,7 +113,7 @@ impl<'a> Parser<'a> {
         self.consume_expecting(TokenClass::Keyword(KeywordToken::Let))?;
         let token = self.consume_expecting(TokenClass::Atom(AtomToken::Identifier))?;
         self.consume_expecting(TokenClass::Op(OpToken::Eq))?;
-        Ok(Box::new(AstNode::VariableDeclarationStmt {
+        Ok(Box::new(AstNode::VariableDecl {
             identifier: token.lexeme.clone(),
             token,
             expression: self.parse_expr(0.0)?,
@@ -132,7 +132,7 @@ impl<'a> Parser<'a> {
             });
         }
 
-        Ok(Box::new(AstNode::VariableReassignmentStmt {
+        Ok(Box::new(AstNode::VariableReassignDecl {
             identifier: identifier_token.lexeme.clone(),
             token: reassignment_token,
             expression: self.parse_expr(0.0)?,

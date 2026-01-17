@@ -26,7 +26,7 @@ pub enum RuntimeError {
 #[derive(Debug)]
 pub enum InterpreterError {
     Compiler(CompilerError),
-    Runtime(RuntimeError),
+    Runtime((RuntimeError, Chunk)),
 }
 
 pub struct Interpreter {
@@ -53,50 +53,46 @@ impl Interpreter {
             Err(err) => return Err(InterpreterError::Compiler(err)),
             Ok(chunk) => chunk,
         };
-        self.interpret_chunk(chunk)?;
-        match &self.stdout {
-            Some(stdout) => Ok(Some(stdout.clone())),
-            None => Ok(None),
+        match self.interpret_chunk(chunk) {
+            Err(err) => return Err(InterpreterError::Runtime((err, chunk.clone()))),
+            Ok(()) => match &self.stdout {
+                Some(stdout) => Ok(Some(stdout.clone())),
+                None => Ok(None),
+            },
         }
     }
 
-    fn interpret_chunk(&mut self, chunk: &Chunk) -> Result<(), InterpreterError> {
+    fn interpret_chunk(&mut self, chunk: &Chunk) -> Result<(), RuntimeError> {
         self.stack.clear();
         self.ip = 0;
         while self.ip < chunk.code.len() {
             let op_code = match OpCode::from_usize(chunk.code[self.ip]) {
                 None => {
-                    return Err(InterpreterError::Runtime(RuntimeError::InvalidOpCode(
-                        chunk.code[self.ip],
-                    )));
+                    return Err(RuntimeError::InvalidOpCode(chunk.code[self.ip]));
                 }
                 Some(op_code) => op_code,
             };
             match op_code {
                 OpCode::Print => self.interpret_print()?,
                 OpCode::Negate => match self.stack.pop() {
-                    None => return Err(InterpreterError::Runtime(RuntimeError::ExpectedOperand)),
+                    None => return Err(RuntimeError::ExpectedOperand),
                     Some(operand) => {
                         match operand {
                             Value::Number(operand) => self.stack.push(Value::Number(-operand)),
                             _ => {
-                                return Err(InterpreterError::Runtime(
-                                    RuntimeError::ExpectedNumberType,
-                                ));
+                                return Err(RuntimeError::ExpectedNumberType);
                             }
                         }
                         self.ip += 1;
                     }
                 },
                 OpCode::Not => match self.stack.pop() {
-                    None => return Err(InterpreterError::Runtime(RuntimeError::ExpectedOperand)),
+                    None => return Err(RuntimeError::ExpectedOperand),
                     Some(operand) => {
                         match operand {
                             Value::Boolean(operand) => self.stack.push(Value::Boolean(!operand)),
                             _ => {
-                                return Err(InterpreterError::Runtime(
-                                    RuntimeError::ExpectedBooleanType,
-                                ));
+                                return Err(RuntimeError::ExpectedBooleanType);
                             }
                         }
                         self.ip += 1;
@@ -110,15 +106,13 @@ impl Interpreter {
                                 let expr_value = match vm.stack.pop() {
                                     Some(expr_value) => expr_value,
                                     None => {
-                                        return Err(InterpreterError::Runtime(
-                                            RuntimeError::ExpectedExpression,
-                                        ));
+                                        return Err(RuntimeError::ExpectedExpression);
                                     }
                                 };
                                 vm.variables.insert(var_name.clone(), expr_value);
                                 Ok(())
                             }
-                            _ => Err(InterpreterError::Runtime(RuntimeError::InvalidIdentifier)),
+                            _ => Err(RuntimeError::InvalidIdentifier),
                         },
                     )?;
                 }
@@ -129,11 +123,9 @@ impl Interpreter {
                                 vm.stack.push(value.clone());
                                 Ok(())
                             }
-                            None => Err(InterpreterError::Runtime(
-                                RuntimeError::UninitialisedVariable,
-                            )),
+                            None => Err(RuntimeError::UninitialisedVariable),
                         },
-                        _ => Err(InterpreterError::Runtime(RuntimeError::InvalidIdentifier)),
+                        _ => Err(RuntimeError::InvalidIdentifier),
                     })
                 }?,
                 OpCode::Constant => {
@@ -157,9 +149,7 @@ impl Interpreter {
             }
         }
         if self.stack.len() > 1 {
-            return Err(InterpreterError::Runtime(
-                RuntimeError::IncompleteExpression,
-            ));
+            return Err(RuntimeError::IncompleteExpression);
         }
         Ok(())
     }
@@ -167,8 +157,8 @@ impl Interpreter {
     fn interpret_instruction_with_constant(
         &mut self,
         chunk: &Chunk,
-        func: impl Fn(&mut Self, &Value) -> Result<(), InterpreterError>,
-    ) -> Result<(), InterpreterError> {
+        func: impl Fn(&mut Self, &Value) -> Result<(), RuntimeError>,
+    ) -> Result<(), RuntimeError> {
         let constant_idx = chunk.code[self.ip + 1];
         let constant = &chunk.constants[constant_idx];
         func(self, constant)?;
@@ -176,7 +166,7 @@ impl Interpreter {
         Ok(())
     }
 
-    fn interpret_binary_op(&mut self, op_code: OpCode) -> Result<(), InterpreterError> {
+    fn interpret_binary_op(&mut self, op_code: OpCode) -> Result<(), RuntimeError> {
         // pop order flipped
         let operands = (self.stack.pop(), self.stack.pop());
         let result = match operands {
@@ -192,9 +182,7 @@ impl Interpreter {
                 OpCode::GreaterThanEq => Value::Boolean(left >= right),
                 OpCode::LessThanEq => Value::Boolean(left <= right),
                 _ => {
-                    return Err(InterpreterError::Runtime(
-                        RuntimeError::InvalidBinaryOperator,
-                    ));
+                    return Err(RuntimeError::InvalidBinaryOperator);
                 }
             },
             (Some(Value::String(right)), Some(Value::String(left))) => match op_code {
@@ -204,9 +192,7 @@ impl Interpreter {
                     Value::String(combined)
                 }
                 _ => {
-                    return Err(InterpreterError::Runtime(
-                        RuntimeError::InvalidBinaryOperator,
-                    ));
+                    return Err(RuntimeError::InvalidBinaryOperator);
                 }
             },
             (Some(Value::Boolean(right)), Some(Value::Boolean(left))) => match op_code {
@@ -215,18 +201,14 @@ impl Interpreter {
                 OpCode::Equals => Value::Boolean(left == right),
                 OpCode::NotEquals => Value::Boolean(left != right),
                 _ => {
-                    return Err(InterpreterError::Runtime(
-                        RuntimeError::InvalidBinaryOperator,
-                    ));
+                    return Err(RuntimeError::InvalidBinaryOperator);
                 }
             },
             (None, _) | (_, None) => {
-                return Err(InterpreterError::Runtime(RuntimeError::ExpectedOperand));
+                return Err(RuntimeError::ExpectedOperand);
             }
             _ => {
-                return Err(InterpreterError::Runtime(
-                    RuntimeError::InvalidBinaryOperation,
-                ));
+                return Err(RuntimeError::InvalidBinaryOperation);
             }
         };
 
@@ -235,10 +217,10 @@ impl Interpreter {
         Ok(())
     }
 
-    fn interpret_print(&mut self) -> Result<(), InterpreterError> {
+    fn interpret_print(&mut self) -> Result<(), RuntimeError> {
         let to_print = match self.stack.pop() {
             None => {
-                return Err(InterpreterError::Runtime(RuntimeError::ExpectedExpression));
+                return Err(RuntimeError::ExpectedExpression);
             }
             Some(value) => value,
         };
@@ -266,7 +248,12 @@ impl Evaluator for Interpreter {
                 Some(to_print) => Ok(EvaluatorOk::Clear(EvaluatorOp::Print(to_print))),
                 None => Ok(EvaluatorOk::Clear(EvaluatorOp::None)),
             },
-            Err(err) => Err(format!("{:#?}", err)),
+            Err(err) => match err {
+                InterpreterError::Runtime((runtime_error, chunk)) => {
+                    Err(format!("{:#?} \n {}", runtime_error, chunk))
+                }
+                InterpreterError::Compiler(compiler_error) => Err(format!("{:#?}", compiler_error)),
+            },
         }
     }
 }

@@ -1,3 +1,5 @@
+use core::fmt;
+
 #[derive(Debug, Clone, Copy)]
 #[repr(usize)]
 pub enum OpCode {
@@ -55,9 +57,45 @@ impl OpCode {
     }
 }
 
+impl fmt::Display for OpCode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let name = match self {
+            OpCode::Constant => "Constant",
+            OpCode::SetVar => "SetVar",
+            OpCode::GetVar => "GetVar",
+            OpCode::Print => "Print",
+            OpCode::Add => "Add",
+            OpCode::Subtract => "Subtract",
+            OpCode::Multiply => "Multiply",
+            OpCode::Divide => "Divide",
+            OpCode::Negate => "Negate",
+            OpCode::Equals => "Equals",
+            OpCode::NotEquals => "NotEquals",
+            OpCode::GreaterThan => "GreaterThan",
+            OpCode::LessThan => "LessThan",
+            OpCode::GreaterThanEq => "GreaterThanEq",
+            OpCode::LessThanEq => "LessThanEq",
+            OpCode::Not => "Not",
+            OpCode::And => "And",
+            OpCode::Or => "Or",
+        };
+        write!(f, "{}", name)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum Value {
     Number(f64),
     String(String),
     Boolean(bool),
+}
+
+impl fmt::Display for Value {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Value::Number(num) => write!(f, "{}", num),
+            Value::String(s) => write!(f, "\"{}\"", s),
+            Value::Boolean(b) => write!(f, "{}", b),
+        }
+    }
 }

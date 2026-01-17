@@ -103,6 +103,10 @@ impl Compiler {
                     _ => return Err(CompileError::ExpectedOpNode),
                 }
             }
+            AstNode::VariableAccessExpr { token, identifier } => {
+                self.add_instruction(OpCode::GetVar, token);
+                self.add_constant(Value::String(identifier.clone()), token);
+            }
             AstNode::BinaryExpr { token, left, right } => {
                 self.compile_ast(left)?;
                 self.compile_ast(right)?;
@@ -127,7 +131,7 @@ impl Compiler {
                 }
             }
             AstNode::Stmt { statement, .. } => self.compile_ast(statement)?,
-            AstNode::VariableDeclarationStmt {
+            AstNode::VariableDecl {
                 token,
                 identifier,
                 expression,
@@ -136,11 +140,7 @@ impl Compiler {
                 self.add_instruction(OpCode::SetVar, token);
                 self.add_constant(Value::String(identifier.clone()), token);
             }
-            AstNode::VariableAccessExpr { token, identifier } => {
-                self.add_instruction(OpCode::GetVar, token);
-                self.add_constant(Value::String(identifier.clone()), token);
-            }
-            AstNode::VariableReassignmentStmt {
+            AstNode::VariableReassignDecl {
                 token,
                 identifier,
                 expression,

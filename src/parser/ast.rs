@@ -40,18 +40,18 @@ pub enum AstNode {
         token: Token,
         statement: Box<AstNode>,
     },
-    VariableDeclarationStmt {
-        token: Token,
-        identifier: String,
-        expression: Box<AstNode>,
-    },
-    VariableReassignmentStmt {
-        token: Token,
-        identifier: String,
-        expression: Box<AstNode>,
-    },
     PrintStmt {
         token: Token,
+        expression: Box<AstNode>,
+    },
+    VariableDecl {
+        token: Token,
+        identifier: String,
+        expression: Box<AstNode>,
+    },
+    VariableReassignDecl {
+        token: Token,
+        identifier: String,
         expression: Box<AstNode>,
     },
     Expr {
