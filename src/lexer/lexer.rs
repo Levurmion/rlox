@@ -29,7 +29,15 @@ impl Lexer {
             col: 0,
         }
     }
+    // ============== HELPER METHODS ==============
+    pub fn into_token_types(&self) -> Vec<TokenClass> {
+        self.tokens
+            .iter()
+            .map(|token| token.token_class.clone())
+            .collect()
+    }
 
+    // ============== LEXER METHODS ==============
     fn new_line(&mut self) {
         self.pos += 1;
         self.row += 1;
