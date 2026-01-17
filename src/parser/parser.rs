@@ -1,5 +1,5 @@
 use crate::{
-    lexer::lexer::{AtomToken, DelimToken, KeywordToken, OpToken, Token, TokenClass},
+    lexer::tokens::{AtomToken, DelimToken, KeywordToken, OpToken, Token, TokenClass},
     parser::ast::{AstNode, ParserError},
 };
 

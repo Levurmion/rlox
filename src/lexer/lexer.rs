@@ -1,68 +1,6 @@
-#[derive(Debug, Clone)]
-pub struct TokenMeta {
-    row: usize,
-    col: usize,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum DelimToken {
-    Semicolon,
-    EoF,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum OpToken {
-    LeftParen,
-    RightParen,
-
-    // arithmetic
-    Plus,
-    Min,
-    Slash,
-    Star,
-
-    // boolean
-    Bang,
-    EqEq,
-    BangEq,
-    Gt,
-    Lt,
-    Geq,
-    Leq,
-    And,
-    Or,
-
-    // assignment
-    PlusEq,
-    MinEq,
-    SlashEq,
-    StarEq,
-    Eq,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum AtomToken {
-    NumericLit,
-    StringLit,
-    Identifier,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum KeywordToken {
-    Let,
-    Print,
-    Fn,
-    True,
-    False,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum TokenClass {
-    Delim(DelimToken),
-    Op(OpToken),
-    Atom(AtomToken),
-    Keyword(KeywordToken),
-}
+use crate::lexer::tokens::{
+    AtomToken, DelimToken, KeywordToken, OpToken, Token, TokenClass, TokenMeta,
+};
 
 #[derive(Debug, Clone)]
 pub enum LexerError {
@@ -70,13 +8,6 @@ pub enum LexerError {
     UnexpectedCharacter { char: String, meta: TokenMeta },
     InvalidNumericLit { char: String, meta: TokenMeta },
     InvalidIdentifier { char: String, meta: TokenMeta },
-}
-
-#[derive(Debug, Clone)]
-pub struct Token {
-    pub token_class: TokenClass,
-    pub lexeme: String,
-    pub meta: TokenMeta,
 }
 
 #[derive(Debug)]

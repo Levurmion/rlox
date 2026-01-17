@@ -4,7 +4,10 @@ use crate::{
         op_code::{OpCode, Value},
     },
     debug,
-    lexer::lexer::{Lexer, LexerError, OpToken, Token, TokenClass},
+    lexer::{
+        lexer::{Lexer, LexerError},
+        tokens::{OpToken, Token, TokenClass},
+    },
     parser::{
         ast::{AstNode, ParserError},
         parser::Parser,
