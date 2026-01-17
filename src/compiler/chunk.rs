@@ -1,4 +1,4 @@
-use crate::{compiler::op_code::Value, lexer::Token};
+use crate::{compiler::op_code::Value, lexer::lexer::Token};
 
 #[derive(Debug)]
 pub struct Chunk {

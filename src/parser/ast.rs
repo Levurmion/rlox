@@ -1,4 +1,4 @@
-use crate::lexer::{Token, TokenClass};
+use crate::lexer::lexer::{DelimToken, Token, TokenClass};
 
 #[derive(Debug, Clone)]
 pub enum ParserError {
@@ -12,12 +12,18 @@ pub enum ParserError {
     ExpectedOpToken {
         token: Token,
     },
+    ExpectedReassignmentOperator {
+        token: Token,
+    },
     UnclosedExpression {
         token: Token,
     },
     UnexpectedToken {
         token: Token,
         expected: Option<TokenClass>,
+    },
+    UnexpectedKeyword {
+        token: Token,
     },
     UnexpectedUnaryOperator {
         token: Token,
@@ -34,9 +40,18 @@ pub enum AstNode {
         token: Token,
         statement: Box<AstNode>,
     },
-    VariableAssignmentStmt {
+    VariableDeclarationStmt {
         token: Token,
         identifier: String,
+        expression: Box<AstNode>,
+    },
+    VariableReassignmentStmt {
+        token: Token,
+        identifier: String,
+        expression: Box<AstNode>,
+    },
+    PrintStmt {
+        token: Token,
         expression: Box<AstNode>,
     },
     Expr {
@@ -55,6 +70,14 @@ pub enum AstNode {
     NumericLit {
         token: Token,
         value: f64,
+    },
+    StringLit {
+        token: Token,
+        value: String,
+    },
+    BooleanLit {
+        token: Token,
+        value: bool,
     },
     VariableAccessExpr {
         token: Token,

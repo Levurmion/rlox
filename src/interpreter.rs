@@ -6,7 +6,7 @@ use crate::{
         compiler::{Compiler, CompilerError},
         op_code::{OpCode, Value},
     },
-    repl::{Evaluator, EvaluatorOk},
+    repl::{Evaluator, EvaluatorOk, EvaluatorOp},
 };
 
 #[derive(Debug)]
@@ -18,6 +18,9 @@ pub enum RuntimeError {
     ExpectedOperand,
     ExpectedExpression,
     UninitialisedVariable,
+    ExpectedNumberType,
+    ExpectedBooleanType,
+    InvalidBinaryOperation,
 }
 
 #[derive(Debug)]
@@ -27,6 +30,7 @@ pub enum InterpreterError {
 }
 
 pub struct Interpreter {
+    stdout: Option<String>,
     variables: HashMap<String, Value>,
     stack: Vec<Value>,
     ip: usize,
@@ -35,27 +39,28 @@ pub struct Interpreter {
 impl Interpreter {
     pub fn new() -> Interpreter {
         Interpreter {
+            stdout: None,
             variables: HashMap::new(),
             stack: Vec::with_capacity(1024),
             ip: 0,
         }
     }
 
-    pub fn interpret(&mut self, input: String) -> Result<String, InterpreterError> {
+    pub fn interpret(&mut self, input: String) -> Result<Option<String>, InterpreterError> {
+        self.stdout = None;
         let mut compiler = Compiler::new();
         let chunk = match compiler.compile(input) {
             Err(err) => return Err(InterpreterError::Compiler(err)),
             Ok(chunk) => chunk,
         };
-        let result = self.interpret_chunk(chunk)?;
-        match result {
-            Some(Value::Number(result)) => Ok(result.to_string()),
-            None => Ok("".to_string()),
-            _ => todo!(),
+        self.interpret_chunk(chunk)?;
+        match &self.stdout {
+            Some(stdout) => Ok(Some(stdout.clone())),
+            None => Ok(None),
         }
     }
 
-    fn interpret_chunk(&mut self, chunk: &Chunk) -> Result<Option<Value>, InterpreterError> {
+    fn interpret_chunk(&mut self, chunk: &Chunk) -> Result<(), InterpreterError> {
         self.stack.clear();
         self.ip = 0;
         while self.ip < chunk.code.len() {
@@ -67,63 +72,88 @@ impl Interpreter {
                 }
                 Some(op_code) => op_code,
             };
-
             match op_code {
-                OpCode::Constant => {
-                    let constant_idx = chunk.code[self.ip + 1];
-                    let constant = &chunk.constants[constant_idx];
-                    self.stack.push(constant.clone());
-                    self.ip += 2;
-                }
+                OpCode::Print => self.interpret_print()?,
                 OpCode::Negate => match self.stack.pop() {
                     None => return Err(InterpreterError::Runtime(RuntimeError::ExpectedOperand)),
                     Some(operand) => {
-                        self.ip += 1;
                         match operand {
                             Value::Number(operand) => self.stack.push(Value::Number(-operand)),
-                            _ => todo!(),
-                        }
-                    }
-                },
-                OpCode::Add | OpCode::Subtract | OpCode::Multiply | OpCode::Divide => {
-                    self.interpret_binary_op(op_code)?
-                }
-                OpCode::SetVar => {
-                    let constant_idx = chunk.code[self.ip + 1];
-                    let var_name = match &chunk.constants[constant_idx] {
-                        Value::String(var_name) => var_name,
-                        _ => {
-                            return Err(InterpreterError::Runtime(RuntimeError::InvalidIdentifier));
-                        }
-                    };
-                    let expr_value = match self.stack.pop() {
-                        Some(expr_value) => expr_value,
-                        None => {
-                            return Err(InterpreterError::Runtime(
-                                RuntimeError::ExpectedExpression,
-                            ));
-                        }
-                    };
-                    self.variables.insert(var_name.clone(), expr_value);
-                    self.ip += 2;
-                }
-                OpCode::GetVar => {
-                    let constant_idx = chunk.code[self.ip + 1];
-                    match &chunk.constants[constant_idx] {
-                        Value::String(var_name) => match self.variables.get(var_name) {
-                            Some(value) => self.stack.push(value.clone()),
-                            None => {
+                            _ => {
                                 return Err(InterpreterError::Runtime(
-                                    RuntimeError::UninitialisedVariable,
+                                    RuntimeError::ExpectedNumberType,
                                 ));
                             }
-                        },
-                        _ => {
-                            return Err(InterpreterError::Runtime(RuntimeError::InvalidIdentifier));
                         }
-                    };
-                    self.ip += 2;
+                        self.ip += 1;
+                    }
+                },
+                OpCode::Not => match self.stack.pop() {
+                    None => return Err(InterpreterError::Runtime(RuntimeError::ExpectedOperand)),
+                    Some(operand) => {
+                        match operand {
+                            Value::Boolean(operand) => self.stack.push(Value::Boolean(!operand)),
+                            _ => {
+                                return Err(InterpreterError::Runtime(
+                                    RuntimeError::ExpectedBooleanType,
+                                ));
+                            }
+                        }
+                        self.ip += 1;
+                    }
+                },
+                OpCode::SetVar => {
+                    self.interpret_instruction_with_constant(
+                        chunk,
+                        |vm, constant| match constant {
+                            Value::String(var_name) => {
+                                let expr_value = match vm.stack.pop() {
+                                    Some(expr_value) => expr_value,
+                                    None => {
+                                        return Err(InterpreterError::Runtime(
+                                            RuntimeError::ExpectedExpression,
+                                        ));
+                                    }
+                                };
+                                vm.variables.insert(var_name.clone(), expr_value);
+                                Ok(())
+                            }
+                            _ => Err(InterpreterError::Runtime(RuntimeError::InvalidIdentifier)),
+                        },
+                    )?;
                 }
+                OpCode::GetVar => {
+                    self.interpret_instruction_with_constant(chunk, |vm, constant| match constant {
+                        Value::String(var_name) => match vm.variables.get(var_name) {
+                            Some(value) => {
+                                vm.stack.push(value.clone());
+                                Ok(())
+                            }
+                            None => Err(InterpreterError::Runtime(
+                                RuntimeError::UninitialisedVariable,
+                            )),
+                        },
+                        _ => Err(InterpreterError::Runtime(RuntimeError::InvalidIdentifier)),
+                    })
+                }?,
+                OpCode::Constant => {
+                    self.interpret_instruction_with_constant(chunk, |vm, constant| {
+                        vm.stack.push(constant.clone());
+                        Ok(())
+                    })?
+                }
+                OpCode::Add
+                | OpCode::Subtract
+                | OpCode::Multiply
+                | OpCode::Divide
+                | OpCode::Equals
+                | OpCode::NotEquals
+                | OpCode::GreaterThan
+                | OpCode::LessThan
+                | OpCode::GreaterThanEq
+                | OpCode::LessThanEq
+                | OpCode::And
+                | OpCode::Or => self.interpret_binary_op(op_code)?,
             }
         }
         if self.stack.len() > 1 {
@@ -131,10 +161,19 @@ impl Interpreter {
                 RuntimeError::IncompleteExpression,
             ));
         }
-        if self.stack.len() == 1 {
-            return Ok(Some(self.stack[0].clone()));
-        }
-        Ok(None)
+        Ok(())
+    }
+
+    fn interpret_instruction_with_constant(
+        &mut self,
+        chunk: &Chunk,
+        func: impl Fn(&mut Self, &Value) -> Result<(), InterpreterError>,
+    ) -> Result<(), InterpreterError> {
+        let constant_idx = chunk.code[self.ip + 1];
+        let constant = &chunk.constants[constant_idx];
+        func(self, constant)?;
+        self.ip += 2;
+        Ok(())
     }
 
     fn interpret_binary_op(&mut self, op_code: OpCode) -> Result<(), InterpreterError> {
@@ -142,21 +181,79 @@ impl Interpreter {
         let operands = (self.stack.pop(), self.stack.pop());
         let result = match operands {
             (Some(Value::Number(right)), Some(Value::Number(left))) => match op_code {
-                OpCode::Add => left + right,
-                OpCode::Subtract => left - right,
-                OpCode::Divide => left / right,
-                OpCode::Multiply => left * right,
+                OpCode::Add => Value::Number(left + right),
+                OpCode::Subtract => Value::Number(left - right),
+                OpCode::Divide => Value::Number(left / right),
+                OpCode::Multiply => Value::Number(left * right),
+                OpCode::Equals => Value::Boolean(left == right),
+                OpCode::NotEquals => Value::Boolean(left != right),
+                OpCode::GreaterThan => Value::Boolean(left > right),
+                OpCode::LessThan => Value::Boolean(left < right),
+                OpCode::GreaterThanEq => Value::Boolean(left >= right),
+                OpCode::LessThanEq => Value::Boolean(left <= right),
                 _ => {
                     return Err(InterpreterError::Runtime(
                         RuntimeError::InvalidBinaryOperator,
                     ));
                 }
             },
-            _ => return Err(InterpreterError::Runtime(RuntimeError::ExpectedOperand)),
+            (Some(Value::String(right)), Some(Value::String(left))) => match op_code {
+                OpCode::Add => {
+                    let mut combined = left;
+                    combined.push_str(&right);
+                    Value::String(combined)
+                }
+                _ => {
+                    return Err(InterpreterError::Runtime(
+                        RuntimeError::InvalidBinaryOperator,
+                    ));
+                }
+            },
+            (Some(Value::Boolean(right)), Some(Value::Boolean(left))) => match op_code {
+                OpCode::And => Value::Boolean(left && right),
+                OpCode::Or => Value::Boolean(left || right),
+                OpCode::Equals => Value::Boolean(left == right),
+                OpCode::NotEquals => Value::Boolean(left != right),
+                _ => {
+                    return Err(InterpreterError::Runtime(
+                        RuntimeError::InvalidBinaryOperator,
+                    ));
+                }
+            },
+            (None, _) | (_, None) => {
+                return Err(InterpreterError::Runtime(RuntimeError::ExpectedOperand));
+            }
+            _ => {
+                return Err(InterpreterError::Runtime(
+                    RuntimeError::InvalidBinaryOperation,
+                ));
+            }
         };
 
         self.ip += 1;
-        self.stack.push(Value::Number(result));
+        self.stack.push(result);
+        Ok(())
+    }
+
+    fn interpret_print(&mut self) -> Result<(), InterpreterError> {
+        let to_print = match self.stack.pop() {
+            None => {
+                return Err(InterpreterError::Runtime(RuntimeError::ExpectedExpression));
+            }
+            Some(value) => value,
+        };
+        match to_print {
+            Value::Number(num) => {
+                self.stdout = Some(num.to_string());
+            }
+            Value::String(s) => {
+                self.stdout = Some(s);
+            }
+            Value::Boolean(b) => {
+                self.stdout = Some(b.to_string());
+            }
+        }
+        self.ip += 1;
         Ok(())
     }
 }
@@ -165,7 +262,10 @@ impl Evaluator for Interpreter {
     fn eval(&mut self, input: String) -> Result<EvaluatorOk, String> {
         let interpret_result = self.interpret(input);
         match interpret_result {
-            Ok(result) => Ok(EvaluatorOk::Clear(result)),
+            Ok(result) => match result {
+                Some(to_print) => Ok(EvaluatorOk::Clear(EvaluatorOp::Print(to_print))),
+                None => Ok(EvaluatorOk::Clear(EvaluatorOp::None)),
+            },
             Err(err) => Err(format!("{:#?}", err)),
         }
     }

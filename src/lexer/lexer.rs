@@ -14,22 +14,46 @@ pub enum DelimToken {
 pub enum OpToken {
     LeftParen,
     RightParen,
+
+    // arithmetic
     Plus,
     Min,
     Slash,
     Star,
+
+    // boolean
+    Bang,
+    EqEq,
+    BangEq,
+    Gt,
+    Lt,
+    Geq,
+    Leq,
+    And,
+    Or,
+
+    // assignment
+    PlusEq,
+    MinEq,
+    SlashEq,
+    StarEq,
     Eq,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AtomToken {
     NumericLit,
+    StringLit,
     Identifier,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum KeywordToken {
     Let,
+    Print,
+    Fn,
+    True,
+    False,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -45,6 +69,7 @@ pub enum LexerError {
     UnexpectedEndOfFile { meta: TokenMeta },
     UnexpectedCharacter { char: String, meta: TokenMeta },
     InvalidNumericLit { char: String, meta: TokenMeta },
+    InvalidIdentifier { char: String, meta: TokenMeta },
 }
 
 #[derive(Debug, Clone)]
@@ -128,6 +153,7 @@ impl Lexer {
                 col: self.col,
             },
         });
+        self.advance(lexeme.len());
     }
 
     fn scan_delimiter(&mut self, lexeme: String) -> Result<(), LexerError> {
@@ -135,7 +161,6 @@ impl Lexer {
             ";" => self.push_token(TokenClass::Delim(DelimToken::Semicolon), &lexeme),
             _ => return Err(self.create_unexpected_char_err(&lexeme)),
         }
-        self.advance(lexeme.len());
         Ok(())
     }
 
@@ -143,22 +168,46 @@ impl Lexer {
         match lexeme.as_str() {
             "(" => self.push_token(TokenClass::Op(OpToken::LeftParen), &lexeme),
             ")" => self.push_token(TokenClass::Op(OpToken::RightParen), &lexeme),
-            "=" => self.push_token(TokenClass::Op(OpToken::Eq), &lexeme),
+            "=" => match self.input.get(self.pos..self.pos + 2) {
+                Some("==") => self.push_token(TokenClass::Op(OpToken::EqEq), "=="),
+                _ => self.push_token(TokenClass::Op(OpToken::Eq), &lexeme),
+            },
+            "+" => match self.input.get(self.pos..self.pos + 2) {
+                Some("+=") => self.push_token(TokenClass::Op(OpToken::PlusEq), "+="),
+                _ => self.push_token(TokenClass::Op(OpToken::Plus), &lexeme),
+            },
+            "-" => match self.input.get(self.pos..self.pos + 2) {
+                Some("-=") => self.push_token(TokenClass::Op(OpToken::MinEq), "-="),
+                _ => self.push_token(TokenClass::Op(OpToken::Min), &lexeme),
+            },
+            "/" => match self.input.get(self.pos..self.pos + 2) {
+                Some("/=") => self.push_token(TokenClass::Op(OpToken::SlashEq), "/="),
+                _ => self.push_token(TokenClass::Op(OpToken::Slash), &lexeme),
+            },
+            "*" => match self.input.get(self.pos..self.pos + 2) {
+                Some("*=") => self.push_token(TokenClass::Op(OpToken::StarEq), "*="),
+                _ => self.push_token(TokenClass::Op(OpToken::Star), &lexeme),
+            },
+            "!" => match self.input.get(self.pos..self.pos + 2) {
+                Some("!=") => self.push_token(TokenClass::Op(OpToken::BangEq), "!="),
+                _ => self.push_token(TokenClass::Op(OpToken::Bang), &lexeme),
+            },
+            ">" => match self.input.get(self.pos..self.pos + 2) {
+                Some(">=") => self.push_token(TokenClass::Op(OpToken::Geq), ">="),
+                _ => self.push_token(TokenClass::Op(OpToken::Gt), &lexeme),
+            },
+            "<" => match self.input.get(self.pos..self.pos + 2) {
+                Some("<=") => self.push_token(TokenClass::Op(OpToken::Leq), "<="),
+                _ => self.push_token(TokenClass::Op(OpToken::Lt), &lexeme),
+            },
+            "&" if self.input.get(self.pos..self.pos + 2) == Some("&&") => {
+                self.push_token(TokenClass::Op(OpToken::And), "&&");
+            }
+            "|" if self.input.get(self.pos..self.pos + 2) == Some("||") => {
+                self.push_token(TokenClass::Op(OpToken::Or), "||");
+            }
             _ => return Err(self.create_unexpected_char_err(&lexeme)),
         }
-        self.advance(lexeme.len());
-        Ok(())
-    }
-
-    fn scan_binary_op(&mut self, lexeme: String) -> Result<(), LexerError> {
-        match lexeme.as_str() {
-            "+" => self.push_token(TokenClass::Op(OpToken::Plus), &lexeme),
-            "-" => self.push_token(TokenClass::Op(OpToken::Min), &lexeme),
-            "/" => self.push_token(TokenClass::Op(OpToken::Slash), &lexeme),
-            "*" => self.push_token(TokenClass::Op(OpToken::Star), &lexeme),
-            _ => return Err(self.create_unexpected_char_err(&lexeme)),
-        }
-        self.advance(lexeme.len());
         Ok(())
     }
 
@@ -187,10 +236,37 @@ impl Lexer {
             }
         }
 
-        let delta = end - self.pos;
         let lexeme = self.input.get(self.pos..end).unwrap().to_string();
         self.push_token(TokenClass::Atom(AtomToken::NumericLit), &lexeme);
-        self.advance(delta);
+
+        Ok(())
+    }
+
+    fn scan_string_lit(&mut self) -> Result<(), LexerError> {
+        let mut end = self.pos + 1;
+
+        while end < self.input.len() {
+            let curr = self.peek_at(end)?;
+            match curr {
+                "\"" => break,
+                _ => end += 1,
+            }
+        }
+
+        if end >= self.input.len() {
+            return Err(LexerError::UnexpectedEndOfFile {
+                meta: TokenMeta {
+                    row: self.row,
+                    col: self.col,
+                },
+            });
+        }
+
+        // include the closing quote
+        end += 1;
+
+        let lexeme = self.input.get(self.pos..end).unwrap().to_string();
+        self.push_token(TokenClass::Atom(AtomToken::StringLit), &lexeme);
 
         Ok(())
     }
@@ -200,7 +276,18 @@ impl Lexer {
         match lexeme {
             "l" if self.input.get(self.pos..self.pos + 3) == Some("let") => {
                 self.push_token(TokenClass::Keyword(KeywordToken::Let), "let");
-                self.advance(3);
+            }
+            "p" if self.input.get(self.pos..self.pos + 5) == Some("print") => {
+                self.push_token(TokenClass::Keyword(KeywordToken::Print), "print");
+            }
+            "f" if self.input.get(self.pos..self.pos + 2) == Some("fn") => {
+                self.push_token(TokenClass::Keyword(KeywordToken::Fn), "fn");
+            }
+            "f" if self.input.get(self.pos..self.pos + 5) == Some("false") => {
+                self.push_token(TokenClass::Keyword(KeywordToken::False), "false");
+            }
+            "t" if self.input.get(self.pos..self.pos + 4) == Some("true") => {
+                self.push_token(TokenClass::Keyword(KeywordToken::True), "true");
             }
             _ => self.scan_identifier()?,
         }
@@ -214,17 +301,27 @@ impl Lexer {
         while end < self.input.len() {
             let curr = self.peek_at(end)?;
             match curr {
-                " " => break,
+                " " | ";" => break,
                 _ => end += 1,
             }
         }
 
-        let delta = end - self.pos;
         let lexeme = self.input.get(self.pos..end).unwrap().to_string();
-        self.push_token(TokenClass::Atom(AtomToken::Identifier), &lexeme);
-        self.advance(delta);
-
-        Ok(())
+        if lexeme
+            .chars()
+            .all(|char| char.is_alphanumeric() || char == '_')
+        {
+            self.push_token(TokenClass::Atom(AtomToken::Identifier), &lexeme);
+            Ok(())
+        } else {
+            Err(LexerError::InvalidIdentifier {
+                char: lexeme,
+                meta: TokenMeta {
+                    row: self.row,
+                    col: self.col,
+                },
+            })
+        }
     }
 
     pub fn tokenize(&mut self) -> Result<(), LexerError> {
@@ -234,9 +331,11 @@ impl Lexer {
                 " " => self.advance(1),
                 "\n" => self.new_line(),
                 ";" => self.scan_delimiter(lexeme.to_string())?,
-                "(" | ")" | "=" => self.scan_op(lexeme.to_string())?,
-                "+" | "-" | "/" | "*" => self.scan_binary_op(lexeme.to_string())?,
+                "(" | ")" | "=" | "+" | "-" | "/" | "*" | "!" | ">" | "<" | "&" | "|" => {
+                    self.scan_op(lexeme.to_string())?
+                }
                 "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" => self.scan_num_lit()?,
+                "\"" => self.scan_string_lit()?,
                 _ => self.scan_keyword()?,
             }
         }

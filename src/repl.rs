@@ -1,8 +1,13 @@
 use std::io::{self, Write};
 
+pub enum EvaluatorOp {
+    Print(String),
+    None,
+}
+
 pub enum EvaluatorOk {
-    Clear(String),
-    Append(String),
+    Clear(EvaluatorOp),
+    Append(EvaluatorOp),
 }
 pub trait Evaluator {
     fn eval(&mut self, input: String) -> Result<EvaluatorOk, String>;
@@ -47,14 +52,17 @@ impl<'a, E: Evaluator> Repl<'a, E> {
 
             match self.evaluator.eval(input.to_string()) {
                 Ok(result) => {
-                    let eval_result = match result {
+                    let eval_op = match result {
                         EvaluatorOk::Clear(msg) => {
                             self.lines.clear();
                             msg
                         }
                         EvaluatorOk::Append(msg) => msg,
                     };
-                    println!("{eval_result}\n");
+                    match eval_op {
+                        EvaluatorOp::Print(result) => println!("{result}"),
+                        EvaluatorOp::None => {}
+                    }
                 }
                 Err(error) => {
                     self.lines.clear();
