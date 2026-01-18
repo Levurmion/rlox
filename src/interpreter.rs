@@ -250,7 +250,7 @@ impl Evaluator for Interpreter {
             },
             Err(err) => match err {
                 InterpreterError::Runtime((runtime_error, chunk)) => {
-                    Err(format!("{:#?} \n {}", runtime_error, chunk))
+                    Err(format!("{:#?} \n\n{}", runtime_error, chunk))
                 }
                 InterpreterError::Compiler(compiler_error) => Err(format!("{:#?}", compiler_error)),
             },

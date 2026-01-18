@@ -26,7 +26,7 @@ impl Chunk {
 impl fmt::Display for Chunk {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut i = 0;
-        writeln!(f, "== Chunk ==")?;
+        writeln!(f, "===== Chunk =====")?;
         while i < self.code.len() {
             match OpCode::from_usize(self.code[i]) {
                 None => {
@@ -39,12 +39,15 @@ impl fmt::Display for Chunk {
                         writeln!(
                             f,
                             "{:04} {: <10} {:04} ({})",
-                            i, op_code, constant_index, self.constants[constant_index]
+                            i,
+                            op_code.to_string(),
+                            constant_index,
+                            self.constants[constant_index]
                         )?;
                         i += 2;
                     }
                     _ => {
-                        writeln!(f, "{:04} {: <10}", i, op_code)?;
+                        writeln!(f, "{:04} {: <10}", i, op_code.to_string())?;
                         i += 1;
                     }
                 },

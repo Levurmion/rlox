@@ -1,3 +1,4 @@
+use colored::*;
 use std::io::{self, Write};
 
 pub enum EvaluatorOp {
@@ -66,7 +67,8 @@ impl<'a, E: Evaluator> Repl<'a, E> {
                 }
                 Err(error) => {
                     self.lines.clear();
-                    eprintln!("eval error: {error}\n")
+                    let formatted = format!("Error: {}", error);
+                    eprintln!("{}", formatted.red());
                 }
             };
         }
