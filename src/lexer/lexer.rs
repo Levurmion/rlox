@@ -227,7 +227,7 @@ impl Lexer {
             "f" if self.input.get(self.pos..self.pos + 5) == Some("false") => {
                 self.push_token(TokenClass::Keyword(KeywordToken::False), "false");
             }
-            "f" if self.input.get(self.pos..self.pos + 5) == Some("for") => {
+            "f" if self.input.get(self.pos..self.pos + 3) == Some("for") => {
                 self.push_token(TokenClass::Keyword(KeywordToken::For), "for");
             }
             "r" if self.input.get(self.pos..self.pos + 6) == Some("return") => {

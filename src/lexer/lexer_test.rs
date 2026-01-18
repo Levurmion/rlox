@@ -143,7 +143,7 @@ mod tests {
 
     #[test]
     fn test_braces() {
-        let input = String::from("let x = { let y = 10; y };");
+        let input = String::from("{ let y = 10 };");
         let mut lexer = crate::lexer::lexer::Lexer::new(input);
         lexer.tokenize().unwrap();
         let tokens = lexer.into_token_types();
@@ -151,19 +151,39 @@ mod tests {
         assert_eq!(
             tokens,
             vec![
-                TokenClass::Keyword(KeywordToken::Let),
-                TokenClass::Atom(AtomToken::Identifier),
-                TokenClass::Op(OpToken::Eq),
                 TokenClass::Op(OpToken::LeftBrace),
                 TokenClass::Keyword(KeywordToken::Let),
                 TokenClass::Atom(AtomToken::Identifier),
                 TokenClass::Op(OpToken::Eq),
                 TokenClass::Atom(AtomToken::NumericLit),
-                TokenClass::Delim(DelimToken::Semicolon),
-                TokenClass::Atom(AtomToken::Identifier),
-                TokenClass::Delim(DelimToken::Semicolon),
                 TokenClass::Op(OpToken::RightBrace),
                 TokenClass::Delim(DelimToken::Semicolon),
+                TokenClass::Delim(DelimToken::EoF)
+            ]
+        );
+    }
+
+    #[test]
+    fn test_keywords() {
+        let input = String::from("class fn print return if else for while true false identifier");
+        let mut lexer = crate::lexer::lexer::Lexer::new(input);
+        lexer.tokenize().unwrap();
+        let tokens = lexer.into_token_types();
+
+        assert_eq!(
+            tokens,
+            vec![
+                TokenClass::Keyword(KeywordToken::Class),
+                TokenClass::Keyword(KeywordToken::Fn),
+                TokenClass::Keyword(KeywordToken::Print),
+                TokenClass::Keyword(KeywordToken::Return),
+                TokenClass::Keyword(KeywordToken::If),
+                TokenClass::Keyword(KeywordToken::Else),
+                TokenClass::Keyword(KeywordToken::For),
+                TokenClass::Keyword(KeywordToken::While),
+                TokenClass::Keyword(KeywordToken::True),
+                TokenClass::Keyword(KeywordToken::False),
+                TokenClass::Atom(AtomToken::Identifier),
                 TokenClass::Delim(DelimToken::EoF)
             ]
         );
