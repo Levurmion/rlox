@@ -6,7 +6,10 @@ use crate::{
         compiler::{Compiler, CompilerError},
         op_code::{ConstValue, OpCode},
     },
-    interpreter::values::LoxValue,
+    interpreter::{
+        interner::{InternedString, Interner},
+        values::LoxValue,
+    },
     repl::{Evaluator, EvaluatorOk, EvaluatorOp},
 };
 
@@ -32,7 +35,8 @@ pub enum InterpreterError {
 
 pub struct Interpreter {
     stdout: Option<String>,
-    variables: HashMap<String, LoxValue>,
+    interner: Interner,
+    variables: HashMap<InternedString, LoxValue>,
     stack: Vec<LoxValue>,
     ip: usize,
 }
@@ -41,6 +45,7 @@ impl Interpreter {
     pub fn new() -> Interpreter {
         Interpreter {
             stdout: None,
+            interner: Interner::new(),
             variables: HashMap::new(),
             stack: Vec::with_capacity(1024),
             ip: 0,
@@ -115,7 +120,8 @@ impl Interpreter {
                                         return Err(RuntimeError::ExpectedExpression);
                                     }
                                 };
-                                vm.variables.insert(var_name.clone(), expr_value);
+                                vm.variables
+                                    .insert(vm.interner.intern(var_name), expr_value);
                                 Ok(())
                             }
                             _ => Err(RuntimeError::InvalidIdentifier),
@@ -124,13 +130,15 @@ impl Interpreter {
                 }
                 OpCode::GetVar => {
                     self.interpret_instruction_with_constant(chunk, |vm, constant| match constant {
-                        ConstValue::String(var_name) => match vm.variables.get(var_name) {
-                            Some(value) => {
-                                vm.stack.push(value.clone());
-                                Ok(())
+                        ConstValue::String(var_name) => {
+                            match vm.variables.get(&vm.interner.intern(var_name)) {
+                                Some(value) => {
+                                    vm.stack.push(value.clone());
+                                    Ok(())
+                                }
+                                None => Err(RuntimeError::UninitialisedVariable),
                             }
-                            None => Err(RuntimeError::UninitialisedVariable),
-                        },
+                        }
                         _ => Err(RuntimeError::InvalidIdentifier),
                     })
                 }?,
@@ -138,8 +146,8 @@ impl Interpreter {
                     self.interpret_instruction_with_constant(chunk, |vm, constant| {
                         let lox_value = match constant {
                             ConstValue::Number(num) => LoxValue::Number(*num),
-                            ConstValue::String(s) => LoxValue::String(s.clone()),
                             ConstValue::Boolean(b) => LoxValue::Boolean(*b),
+                            ConstValue::String(s) => LoxValue::String(vm.interner.intern(s)),
                         };
                         vm.stack.push(lox_value);
                         Ok(())
@@ -198,10 +206,14 @@ impl Interpreter {
             },
             (Some(LoxValue::String(right)), Some(LoxValue::String(left))) => match op_code {
                 OpCode::Add => {
-                    let mut combined = left;
-                    combined.push_str(&right);
-                    LoxValue::String(combined)
+                    let left_str = self.interner.resolve(left);
+                    let right_str = self.interner.resolve(right);
+                    let combined = left_str.to_string() + right_str;
+                    let interned_combined = self.interner.intern(&combined);
+                    LoxValue::String(interned_combined)
                 }
+                OpCode::Equals => LoxValue::Boolean(left == right),
+                OpCode::NotEquals => LoxValue::Boolean(left != right),
                 _ => {
                     return Err(RuntimeError::InvalidBinaryOperator);
                 }
@@ -240,7 +252,7 @@ impl Interpreter {
                 self.stdout = Some(num.to_string());
             }
             LoxValue::String(s) => {
-                self.stdout = Some(s);
+                self.stdout = Some(s.to_string());
             }
             LoxValue::Boolean(b) => {
                 self.stdout = Some(b.to_string());
