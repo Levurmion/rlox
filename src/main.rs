@@ -1,4 +1,4 @@
-use crate::{interpreter::Interpreter, repl::Repl};
+use crate::{interpreter::interpreter::Interpreter, repl::Repl};
 
 mod compiler;
 mod interpreter;

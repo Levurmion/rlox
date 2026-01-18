@@ -89,16 +89,16 @@ impl<'a> Parser<'a> {
         let token = self.peek()?;
         match token.token_class {
             TokenClass::Atom(_) | TokenClass::Op(_) => self.parse_expr(0.0),
-            _ => self.parse_stmt(),
+            _ => self.parse_decl(),
         }
     }
 
     // statements
-    fn parse_stmt(&mut self) -> ParseResult {
+    fn parse_decl(&mut self) -> ParseResult {
         let token = self.peek()?;
         let statement = match &token.token_class {
             TokenClass::Keyword(keyword) => match keyword {
-                KeywordToken::Let => self.parse_variable_declaration_stmt()?,
+                KeywordToken::Let => self.parse_variable_decl()?,
                 KeywordToken::Print => self.parse_print_stmt()?,
                 _ => todo!(),
             },
@@ -109,7 +109,7 @@ impl<'a> Parser<'a> {
         Ok(statement)
     }
 
-    fn parse_variable_declaration_stmt(&mut self) -> ParseResult {
+    fn parse_variable_decl(&mut self) -> ParseResult {
         self.consume_expecting(TokenClass::Keyword(KeywordToken::Let))?;
         let token = self.consume_expecting(TokenClass::Atom(AtomToken::Identifier))?;
         self.consume_expecting(TokenClass::Op(OpToken::Eq))?;

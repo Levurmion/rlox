@@ -4,8 +4,9 @@ use crate::{
     compiler::{
         chunk::Chunk,
         compiler::{Compiler, CompilerError},
-        op_code::{OpCode, Value},
+        op_code::{ConstValue, OpCode},
     },
+    interpreter::values::LoxValue,
     repl::{Evaluator, EvaluatorOk, EvaluatorOp},
 };
 
@@ -31,8 +32,8 @@ pub enum InterpreterError {
 
 pub struct Interpreter {
     stdout: Option<String>,
-    variables: HashMap<String, Value>,
-    stack: Vec<Value>,
+    variables: HashMap<String, LoxValue>,
+    stack: Vec<LoxValue>,
     ip: usize,
 }
 
@@ -72,13 +73,16 @@ impl Interpreter {
                 }
                 Some(op_code) => op_code,
             };
+
             match op_code {
                 OpCode::Print => self.interpret_print()?,
                 OpCode::Negate => match self.stack.pop() {
                     None => return Err(RuntimeError::ExpectedOperand),
                     Some(operand) => {
                         match operand {
-                            Value::Number(operand) => self.stack.push(Value::Number(-operand)),
+                            LoxValue::Number(operand) => {
+                                self.stack.push(LoxValue::Number(-operand))
+                            }
                             _ => {
                                 return Err(RuntimeError::ExpectedNumberType);
                             }
@@ -90,7 +94,9 @@ impl Interpreter {
                     None => return Err(RuntimeError::ExpectedOperand),
                     Some(operand) => {
                         match operand {
-                            Value::Boolean(operand) => self.stack.push(Value::Boolean(!operand)),
+                            LoxValue::Boolean(operand) => {
+                                self.stack.push(LoxValue::Boolean(!operand))
+                            }
                             _ => {
                                 return Err(RuntimeError::ExpectedBooleanType);
                             }
@@ -102,7 +108,7 @@ impl Interpreter {
                     self.interpret_instruction_with_constant(
                         chunk,
                         |vm, constant| match constant {
-                            Value::String(var_name) => {
+                            ConstValue::String(var_name) => {
                                 let expr_value = match vm.stack.pop() {
                                     Some(expr_value) => expr_value,
                                     None => {
@@ -118,7 +124,7 @@ impl Interpreter {
                 }
                 OpCode::GetVar => {
                     self.interpret_instruction_with_constant(chunk, |vm, constant| match constant {
-                        Value::String(var_name) => match vm.variables.get(var_name) {
+                        ConstValue::String(var_name) => match vm.variables.get(var_name) {
                             Some(value) => {
                                 vm.stack.push(value.clone());
                                 Ok(())
@@ -130,7 +136,12 @@ impl Interpreter {
                 }?,
                 OpCode::Constant => {
                     self.interpret_instruction_with_constant(chunk, |vm, constant| {
-                        vm.stack.push(constant.clone());
+                        let lox_value = match constant {
+                            ConstValue::Number(num) => LoxValue::Number(*num),
+                            ConstValue::String(s) => LoxValue::String(s.clone()),
+                            ConstValue::Boolean(b) => LoxValue::Boolean(*b),
+                        };
+                        vm.stack.push(lox_value);
                         Ok(())
                     })?
                 }
@@ -157,7 +168,7 @@ impl Interpreter {
     fn interpret_instruction_with_constant(
         &mut self,
         chunk: &Chunk,
-        func: impl Fn(&mut Self, &Value) -> Result<(), RuntimeError>,
+        func: impl Fn(&mut Self, &ConstValue) -> Result<(), RuntimeError>,
     ) -> Result<(), RuntimeError> {
         let constant_idx = chunk.code[self.ip + 1];
         let constant = &chunk.constants[constant_idx];
@@ -170,36 +181,36 @@ impl Interpreter {
         // pop order flipped
         let operands = (self.stack.pop(), self.stack.pop());
         let result = match operands {
-            (Some(Value::Number(right)), Some(Value::Number(left))) => match op_code {
-                OpCode::Add => Value::Number(left + right),
-                OpCode::Subtract => Value::Number(left - right),
-                OpCode::Divide => Value::Number(left / right),
-                OpCode::Multiply => Value::Number(left * right),
-                OpCode::Equals => Value::Boolean(left == right),
-                OpCode::NotEquals => Value::Boolean(left != right),
-                OpCode::GreaterThan => Value::Boolean(left > right),
-                OpCode::LessThan => Value::Boolean(left < right),
-                OpCode::GreaterThanEq => Value::Boolean(left >= right),
-                OpCode::LessThanEq => Value::Boolean(left <= right),
+            (Some(LoxValue::Number(right)), Some(LoxValue::Number(left))) => match op_code {
+                OpCode::Add => LoxValue::Number(left + right),
+                OpCode::Subtract => LoxValue::Number(left - right),
+                OpCode::Divide => LoxValue::Number(left / right),
+                OpCode::Multiply => LoxValue::Number(left * right),
+                OpCode::Equals => LoxValue::Boolean(left == right),
+                OpCode::NotEquals => LoxValue::Boolean(left != right),
+                OpCode::GreaterThan => LoxValue::Boolean(left > right),
+                OpCode::LessThan => LoxValue::Boolean(left < right),
+                OpCode::GreaterThanEq => LoxValue::Boolean(left >= right),
+                OpCode::LessThanEq => LoxValue::Boolean(left <= right),
                 _ => {
                     return Err(RuntimeError::InvalidBinaryOperator);
                 }
             },
-            (Some(Value::String(right)), Some(Value::String(left))) => match op_code {
+            (Some(LoxValue::String(right)), Some(LoxValue::String(left))) => match op_code {
                 OpCode::Add => {
                     let mut combined = left;
                     combined.push_str(&right);
-                    Value::String(combined)
+                    LoxValue::String(combined)
                 }
                 _ => {
                     return Err(RuntimeError::InvalidBinaryOperator);
                 }
             },
-            (Some(Value::Boolean(right)), Some(Value::Boolean(left))) => match op_code {
-                OpCode::And => Value::Boolean(left && right),
-                OpCode::Or => Value::Boolean(left || right),
-                OpCode::Equals => Value::Boolean(left == right),
-                OpCode::NotEquals => Value::Boolean(left != right),
+            (Some(LoxValue::Boolean(right)), Some(LoxValue::Boolean(left))) => match op_code {
+                OpCode::And => LoxValue::Boolean(left && right),
+                OpCode::Or => LoxValue::Boolean(left || right),
+                OpCode::Equals => LoxValue::Boolean(left == right),
+                OpCode::NotEquals => LoxValue::Boolean(left != right),
                 _ => {
                     return Err(RuntimeError::InvalidBinaryOperator);
                 }
@@ -225,15 +236,16 @@ impl Interpreter {
             Some(value) => value,
         };
         match to_print {
-            Value::Number(num) => {
+            LoxValue::Number(num) => {
                 self.stdout = Some(num.to_string());
             }
-            Value::String(s) => {
+            LoxValue::String(s) => {
                 self.stdout = Some(s);
             }
-            Value::Boolean(b) => {
+            LoxValue::Boolean(b) => {
                 self.stdout = Some(b.to_string());
             }
+            LoxValue::Object(_) => todo!(),
         }
         self.ip += 1;
         Ok(())

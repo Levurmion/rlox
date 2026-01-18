@@ -1,7 +1,7 @@
 use crate::{
     compiler::{
         chunk::Chunk,
-        op_code::{OpCode, Value},
+        op_code::{ConstValue, OpCode},
     },
     debug,
     lexer::{
@@ -67,7 +67,7 @@ impl Compiler {
         self.chunk.tokens.push(token.clone());
     }
 
-    fn add_constant(&mut self, value: Value, token: &Token) {
+    fn add_constant(&mut self, value: ConstValue, token: &Token) {
         self.chunk.code.push(self.chunk.constants.len());
         self.chunk.constants.push(value);
         self.chunk.tokens.push(token.clone());
@@ -78,15 +78,15 @@ impl Compiler {
             AstNode::Empty => {}
             AstNode::NumericLit { token, value } => {
                 self.add_instruction(OpCode::Constant, token);
-                self.add_constant(Value::Number(*value), token);
+                self.add_constant(ConstValue::Number(*value), token);
             }
             AstNode::StringLit { token, value } => {
                 self.add_instruction(OpCode::Constant, token);
-                self.add_constant(Value::String(value.clone().replace("\"", "")), token);
+                self.add_constant(ConstValue::String(value.clone().replace("\"", "")), token);
             }
             AstNode::BooleanLit { token, value } => {
                 self.add_instruction(OpCode::Constant, token);
-                self.add_constant(Value::Boolean(*value), token);
+                self.add_constant(ConstValue::Boolean(*value), token);
             }
             AstNode::Expr { expr, .. } => {
                 self.compile_ast(expr)?;
@@ -105,7 +105,7 @@ impl Compiler {
             }
             AstNode::VariableAccessExpr { token, identifier } => {
                 self.add_instruction(OpCode::GetVar, token);
-                self.add_constant(Value::String(identifier.clone()), token);
+                self.add_constant(ConstValue::String(identifier.clone()), token);
             }
             AstNode::BinaryExpr { token, left, right } => {
                 self.compile_ast(left)?;
@@ -138,7 +138,7 @@ impl Compiler {
             } => {
                 self.compile_ast(expression)?;
                 self.add_instruction(OpCode::SetVar, token);
-                self.add_constant(Value::String(identifier.clone()), token);
+                self.add_constant(ConstValue::String(identifier.clone()), token);
             }
             AstNode::VariableReassignDecl {
                 token,
@@ -149,12 +149,12 @@ impl Compiler {
                     OpToken::Eq => {
                         self.compile_ast(expression)?;
                         self.add_instruction(OpCode::SetVar, token);
-                        self.add_constant(Value::String(identifier.clone()), token);
+                        self.add_constant(ConstValue::String(identifier.clone()), token);
                     }
                     OpToken::MinEq | OpToken::PlusEq | OpToken::StarEq | OpToken::SlashEq => {
                         // First, get the current value of the variable
                         self.add_instruction(OpCode::GetVar, token);
-                        self.add_constant(Value::String(identifier.clone()), token);
+                        self.add_constant(ConstValue::String(identifier.clone()), token);
 
                         // Then, compile the new expression
                         self.compile_ast(expression)?;
@@ -170,7 +170,7 @@ impl Compiler {
 
                         // Finally, set the variable with the new value
                         self.add_instruction(OpCode::SetVar, token);
-                        self.add_constant(Value::String(identifier.clone()), token);
+                        self.add_constant(ConstValue::String(identifier.clone()), token);
                     }
                     _ => return Err(CompileError::ExpectedReassignmentOperator),
                 },

@@ -2,14 +2,14 @@ use core::fmt;
 use std::fmt::Error;
 
 use crate::{
-    compiler::op_code::{OpCode, Value},
+    compiler::op_code::{ConstValue, OpCode},
     lexer::tokens::Token,
 };
 
 #[derive(Debug, Clone)]
 pub struct Chunk {
     pub code: Vec<usize>,
-    pub constants: Vec<Value>,
+    pub constants: Vec<ConstValue>,
     pub tokens: Vec<Token>,
 }
 

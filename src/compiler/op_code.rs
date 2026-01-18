@@ -84,18 +84,18 @@ impl fmt::Display for OpCode {
 }
 
 #[derive(Debug, Clone)]
-pub enum Value {
+pub enum ConstValue {
     Number(f64),
     String(String),
     Boolean(bool),
 }
 
-impl fmt::Display for Value {
+impl fmt::Display for ConstValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Value::Number(num) => write!(f, "{}", num),
-            Value::String(s) => write!(f, "\"{}\"", s),
-            Value::Boolean(b) => write!(f, "{}", b),
+            ConstValue::Number(num) => write!(f, "{}", num),
+            ConstValue::String(s) => write!(f, "\"{}\"", s),
+            ConstValue::Boolean(b) => write!(f, "{}", b),
         }
     }
 }
