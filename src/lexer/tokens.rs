@@ -8,6 +8,8 @@ pub enum DelimToken {
 pub enum OpToken {
     LeftParen,
     RightParen,
+    LeftBrace,
+    RightBrace,
 
     // arithmetic
     Plus,
@@ -43,9 +45,20 @@ pub enum AtomToken {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum KeywordToken {
+    // declarations
     Let,
-    Print,
     Fn,
+    Class,
+
+    // statements
+    Print,
+    Return,
+    If,
+    Else,
+    For,
+    While,
+
+    // bool literals
     True,
     False,
 }

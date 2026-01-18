@@ -107,6 +107,8 @@ impl Lexer {
         match lexeme.as_str() {
             "(" => self.push_token(TokenClass::Op(OpToken::LeftParen), &lexeme),
             ")" => self.push_token(TokenClass::Op(OpToken::RightParen), &lexeme),
+            "{" => self.push_token(TokenClass::Op(OpToken::LeftBrace), &lexeme),
+            "}" => self.push_token(TokenClass::Op(OpToken::RightBrace), &lexeme),
             "=" => match self.input.get(self.pos..self.pos + 2) {
                 Some("==") => self.push_token(TokenClass::Op(OpToken::EqEq), "=="),
                 _ => self.push_token(TokenClass::Op(OpToken::Eq), &lexeme),
@@ -225,8 +227,26 @@ impl Lexer {
             "f" if self.input.get(self.pos..self.pos + 5) == Some("false") => {
                 self.push_token(TokenClass::Keyword(KeywordToken::False), "false");
             }
+            "f" if self.input.get(self.pos..self.pos + 5) == Some("for") => {
+                self.push_token(TokenClass::Keyword(KeywordToken::For), "for");
+            }
+            "r" if self.input.get(self.pos..self.pos + 6) == Some("return") => {
+                self.push_token(TokenClass::Keyword(KeywordToken::Return), "return");
+            }
+            "i" if self.input.get(self.pos..self.pos + 2) == Some("if") => {
+                self.push_token(TokenClass::Keyword(KeywordToken::If), "if");
+            }
+            "e" if self.input.get(self.pos..self.pos + 4) == Some("else") => {
+                self.push_token(TokenClass::Keyword(KeywordToken::Else), "else");
+            }
+            "w" if self.input.get(self.pos..self.pos + 5) == Some("while") => {
+                self.push_token(TokenClass::Keyword(KeywordToken::While), "while");
+            }
             "t" if self.input.get(self.pos..self.pos + 4) == Some("true") => {
                 self.push_token(TokenClass::Keyword(KeywordToken::True), "true");
+            }
+            "c" if self.input.get(self.pos..self.pos + 5) == Some("class") => {
+                self.push_token(TokenClass::Keyword(KeywordToken::Class), "class");
             }
             _ => self.scan_identifier()?,
         }
@@ -270,9 +290,8 @@ impl Lexer {
                 " " => self.advance(1),
                 "\n" => self.new_line(),
                 ";" => self.scan_delimiter(lexeme.to_string())?,
-                "(" | ")" | "=" | "+" | "-" | "/" | "*" | "!" | ">" | "<" | "&" | "|" => {
-                    self.scan_op(lexeme.to_string())?
-                }
+                "(" | ")" | "{" | "}" | "=" | "+" | "-" | "/" | "*" | "!" | ">" | "<" | "&"
+                | "|" => self.scan_op(lexeme.to_string())?,
                 "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" => self.scan_num_lit()?,
                 "\"" => self.scan_string_lit()?,
                 _ => self.scan_keyword()?,

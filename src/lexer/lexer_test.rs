@@ -140,4 +140,32 @@ mod tests {
             ]
         );
     }
+
+    #[test]
+    fn test_braces() {
+        let input = String::from("let x = { let y = 10; y };");
+        let mut lexer = crate::lexer::lexer::Lexer::new(input);
+        lexer.tokenize().unwrap();
+        let tokens = lexer.into_token_types();
+
+        assert_eq!(
+            tokens,
+            vec![
+                TokenClass::Keyword(KeywordToken::Let),
+                TokenClass::Atom(AtomToken::Identifier),
+                TokenClass::Op(OpToken::Eq),
+                TokenClass::Op(OpToken::LeftBrace),
+                TokenClass::Keyword(KeywordToken::Let),
+                TokenClass::Atom(AtomToken::Identifier),
+                TokenClass::Op(OpToken::Eq),
+                TokenClass::Atom(AtomToken::NumericLit),
+                TokenClass::Delim(DelimToken::Semicolon),
+                TokenClass::Atom(AtomToken::Identifier),
+                TokenClass::Delim(DelimToken::Semicolon),
+                TokenClass::Op(OpToken::RightBrace),
+                TokenClass::Delim(DelimToken::Semicolon),
+                TokenClass::Delim(DelimToken::EoF)
+            ]
+        );
+    }
 }
