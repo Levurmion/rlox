@@ -151,12 +151,12 @@ mod tests {
         assert_eq!(
             tokens,
             vec![
-                TokenClass::Op(OpToken::LeftBrace),
+                TokenClass::Delim(DelimToken::LeftBrace),
                 TokenClass::Keyword(KeywordToken::Let),
                 TokenClass::Atom(AtomToken::Identifier),
                 TokenClass::Op(OpToken::Eq),
                 TokenClass::Atom(AtomToken::NumericLit),
-                TokenClass::Op(OpToken::RightBrace),
+                TokenClass::Delim(DelimToken::RightBrace),
                 TokenClass::Delim(DelimToken::Semicolon),
                 TokenClass::Delim(DelimToken::EoF)
             ]

@@ -6,10 +6,13 @@ use crate::{
         compiler::{Compiler, CompilerError},
         op_code::{ConstValue, OpCode},
     },
+    debug,
     interpreter::{
         interner::{InternedString, Interner},
         values::LoxValue,
     },
+    lexer::lexer::{Lexer, LexerError},
+    parser::{ast::ParserError, parser::Parser},
     repl::{Evaluator, EvaluatorOk, EvaluatorOp},
 };
 
@@ -29,6 +32,8 @@ pub enum RuntimeError {
 
 #[derive(Debug)]
 pub enum InterpreterError {
+    Lexer(LexerError),
+    Parser(Vec<ParserError>),
     Compiler(CompilerError),
     Runtime((RuntimeError, Chunk)),
 }
@@ -54,11 +59,27 @@ impl Interpreter {
 
     pub fn interpret(&mut self, input: String) -> Result<Option<String>, InterpreterError> {
         self.stdout = None;
+
+        let mut lexer = Lexer::new(input);
+        match lexer.tokenize() {
+            Err(err) => return Err(InterpreterError::Lexer(err)),
+            Ok(_) => {}
+        }
+
+        let mut parser = Parser::new(&lexer.tokens);
+        let ast = match parser.parse() {
+            Err(e) => {
+                return Err(InterpreterError::Parser(e));
+            }
+            Ok(ast) => ast,
+        };
+
         let mut compiler = Compiler::new();
-        let chunk = match compiler.compile(input) {
+        let chunk = match compiler.compile(&ast) {
             Err(err) => return Err(InterpreterError::Compiler(err)),
             Ok(chunk) => chunk,
         };
+
         match self.interpret_chunk(chunk) {
             Err(err) => return Err(InterpreterError::Runtime((err, chunk.clone()))),
             Ok(()) => match &self.stdout {
@@ -144,7 +165,7 @@ impl Interpreter {
                 }?,
                 OpCode::Constant => {
                     self.interpret_instruction_with_constant(chunk, |vm, constant| {
-                        let lox_value = match constant {
+                        let lox_value: LoxValue = match constant {
                             ConstValue::Number(num) => LoxValue::Number(*num),
                             ConstValue::Boolean(b) => LoxValue::Boolean(*b),
                             ConstValue::String(s) => LoxValue::String(vm.interner.intern(s)),
@@ -152,6 +173,13 @@ impl Interpreter {
                         vm.stack.push(lox_value);
                         Ok(())
                     })?
+                }
+                OpCode::Pop => {
+                    match self.stack.pop() {
+                        None => return Err(RuntimeError::ExpectedExpression),
+                        Some(_) => {}
+                    }
+                    self.ip += 1;
                 }
                 OpCode::Add
                 | OpCode::Subtract
@@ -165,6 +193,7 @@ impl Interpreter {
                 | OpCode::LessThanEq
                 | OpCode::And
                 | OpCode::Or => self.interpret_binary_op(op_code)?,
+                _ => todo!(),
             }
         }
         if self.stack.len() > 1 {
@@ -252,7 +281,7 @@ impl Interpreter {
                 self.stdout = Some(num.to_string());
             }
             LoxValue::String(s) => {
-                self.stdout = Some(s.to_string());
+                self.stdout = Some(self.interner.resolve(s).to_string());
             }
             LoxValue::Boolean(b) => {
                 self.stdout = Some(b.to_string());
@@ -276,7 +305,15 @@ impl Evaluator for Interpreter {
                 InterpreterError::Runtime((runtime_error, chunk)) => {
                     Err(format!("{:#?} \n\n{}", runtime_error, chunk))
                 }
-                InterpreterError::Compiler(compiler_error) => Err(format!("{:#?}", compiler_error)),
+                InterpreterError::Compiler(compiler_error) => {
+                    Err(format!("compile error: {:#?}", compiler_error))
+                }
+                InterpreterError::Lexer(lexer_error) => {
+                    Err(format!("lexing error: {:#?}", lexer_error))
+                }
+                InterpreterError::Parser(parser_error) => {
+                    Err(format!("parsing error: {:#?}", parser_error))
+                }
             },
         }
     }

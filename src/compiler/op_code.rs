@@ -7,6 +7,7 @@ pub enum OpCode {
     SetVar,
     GetVar,
     Print,
+    Return,
 
     Add,
     Subtract,
@@ -24,6 +25,9 @@ pub enum OpCode {
     Not,
     And,
     Or,
+
+    Pop,
+    Jump,
 }
 
 impl OpCode {
@@ -33,20 +37,23 @@ impl OpCode {
             1 => Some(OpCode::SetVar),
             2 => Some(OpCode::GetVar),
             3 => Some(OpCode::Print),
-            4 => Some(OpCode::Add),
-            5 => Some(OpCode::Subtract),
-            6 => Some(OpCode::Multiply),
-            7 => Some(OpCode::Divide),
-            8 => Some(OpCode::Negate),
-            9 => Some(OpCode::Equals),
-            10 => Some(OpCode::NotEquals),
-            11 => Some(OpCode::GreaterThan),
-            12 => Some(OpCode::LessThan),
-            13 => Some(OpCode::GreaterThanEq),
-            14 => Some(OpCode::LessThanEq),
-            15 => Some(OpCode::Not),
-            16 => Some(OpCode::And),
-            17 => Some(OpCode::Or),
+            4 => Some(OpCode::Return),
+            5 => Some(OpCode::Add),
+            6 => Some(OpCode::Subtract),
+            7 => Some(OpCode::Multiply),
+            8 => Some(OpCode::Divide),
+            9 => Some(OpCode::Negate),
+            10 => Some(OpCode::Equals),
+            11 => Some(OpCode::NotEquals),
+            12 => Some(OpCode::GreaterThan),
+            13 => Some(OpCode::LessThan),
+            14 => Some(OpCode::GreaterThanEq),
+            15 => Some(OpCode::LessThanEq),
+            16 => Some(OpCode::Not),
+            17 => Some(OpCode::And),
+            18 => Some(OpCode::Or),
+            19 => Some(OpCode::Pop),
+            20 => Some(OpCode::Jump),
             _ => None,
         }
     }
@@ -64,6 +71,7 @@ impl fmt::Display for OpCode {
             OpCode::SetVar => "SetVar",
             OpCode::GetVar => "GetVar",
             OpCode::Print => "Print",
+            OpCode::Return => "Return",
             OpCode::Add => "Add",
             OpCode::Subtract => "Subtract",
             OpCode::Multiply => "Multiply",
@@ -78,6 +86,8 @@ impl fmt::Display for OpCode {
             OpCode::Not => "Not",
             OpCode::And => "And",
             OpCode::Or => "Or",
+            OpCode::Pop => "Pop",
+            OpCode::Jump => "Jump",
         };
         write!(f, "{}", name)
     }

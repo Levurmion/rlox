@@ -33,31 +33,87 @@ pub enum ParserError {
     },
 }
 
+#[derive(Debug, Clone)]
+pub struct Parameter {
+    pub token: Token,
+    pub name: String,
+}
+
 #[derive(Debug)]
 pub enum AstNode {
     Empty,
-    Stmt {
-        token: Token,
-        statement: Box<AstNode>,
+    Error,
+    Program {
+        declarations: Vec<Box<AstNode>>,
     },
-    PrintStmt {
-        token: Token,
-        expression: Box<AstNode>,
-    },
+
     VariableDecl {
         token: Token,
         identifier: String,
         expression: Box<AstNode>,
     },
-    VariableReassignDecl {
+    AssignmentDecl {
         token: Token,
         identifier: String,
         expression: Box<AstNode>,
     },
-    Expr {
+    ClassDecl {
         token: Token,
-        expr: Box<AstNode>,
+        name: String,
+        fields: Vec<String>,
+        constructor: Box<AstNode>,
+        methods: Vec<Box<AstNode>>,
     },
+    FnDecl {
+        token: Token,
+        name: String,
+        parameters: Vec<Parameter>,
+        body: Box<AstNode>,
+    },
+
+    // statements
+    ExprStmt {
+        token: Token,
+        expression: Box<AstNode>,
+    },
+    PrintStmt {
+        token: Token,
+        expression: Box<AstNode>,
+    },
+    ReturnStmt {
+        token: Token,
+        expression: Box<AstNode>,
+    },
+    IfStmt {
+        token: Token,
+        condition: Box<AstNode>,
+        if_branch: Box<AstNode>,
+        else_if_branches: Vec<Box<AstNode>>,
+        else_branch: Option<Box<AstNode>>,
+    },
+    ElseIfStmt {
+        token: Token,
+        condition: Box<AstNode>,
+        body: Box<AstNode>,
+    },
+    ForStmt {
+        token: Token,
+        initializer: Box<AstNode>,
+        condition: Box<AstNode>,
+        increment: Box<AstNode>,
+        body: Box<AstNode>,
+    },
+    WhileStmt {
+        token: Token,
+        condition: Box<AstNode>,
+        body: Box<AstNode>,
+    },
+    Block {
+        token: Token,
+        declarations: Vec<Box<AstNode>>,
+    },
+
+    // expressions
     BinaryExpr {
         token: Token,
         left: Box<AstNode>,
@@ -79,7 +135,10 @@ pub enum AstNode {
         token: Token,
         value: bool,
     },
-    VariableAccessExpr {
+    NilLit {
+        token: Token,
+    },
+    IdentifierAccessExpr {
         token: Token,
         identifier: String,
     },

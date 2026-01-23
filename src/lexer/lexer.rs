@@ -98,6 +98,11 @@ impl Lexer {
     fn scan_delimiter(&mut self, lexeme: String) -> Result<(), LexerError> {
         match lexeme.as_str() {
             ";" => self.push_token(TokenClass::Delim(DelimToken::Semicolon), &lexeme),
+            "," => self.push_token(TokenClass::Delim(DelimToken::Comma), &lexeme),
+            "(" => self.push_token(TokenClass::Delim(DelimToken::LeftParen), &lexeme),
+            ")" => self.push_token(TokenClass::Delim(DelimToken::RightParen), &lexeme),
+            "{" => self.push_token(TokenClass::Delim(DelimToken::LeftBrace), &lexeme),
+            "}" => self.push_token(TokenClass::Delim(DelimToken::RightBrace), &lexeme),
             _ => return Err(self.create_unexpected_char_err(&lexeme)),
         }
         Ok(())
@@ -105,10 +110,6 @@ impl Lexer {
 
     fn scan_op(&mut self, lexeme: String) -> Result<(), LexerError> {
         match lexeme.as_str() {
-            "(" => self.push_token(TokenClass::Op(OpToken::LeftParen), &lexeme),
-            ")" => self.push_token(TokenClass::Op(OpToken::RightParen), &lexeme),
-            "{" => self.push_token(TokenClass::Op(OpToken::LeftBrace), &lexeme),
-            "}" => self.push_token(TokenClass::Op(OpToken::RightBrace), &lexeme),
             "=" => match self.input.get(self.pos..self.pos + 2) {
                 Some("==") => self.push_token(TokenClass::Op(OpToken::EqEq), "=="),
                 _ => self.push_token(TokenClass::Op(OpToken::Eq), &lexeme),
@@ -248,6 +249,9 @@ impl Lexer {
             "c" if self.input.get(self.pos..self.pos + 5) == Some("class") => {
                 self.push_token(TokenClass::Keyword(KeywordToken::Class), "class");
             }
+            "n" if self.input.get(self.pos..self.pos + 3) == Some("nil") => {
+                self.push_token(TokenClass::Keyword(KeywordToken::Nil), "nil");
+            }
             _ => self.scan_identifier()?,
         }
 
@@ -289,9 +293,10 @@ impl Lexer {
             match lexeme {
                 " " => self.advance(1),
                 "\n" => self.new_line(),
-                ";" => self.scan_delimiter(lexeme.to_string())?,
-                "(" | ")" | "{" | "}" | "=" | "+" | "-" | "/" | "*" | "!" | ">" | "<" | "&"
-                | "|" => self.scan_op(lexeme.to_string())?,
+                ";" | "," | "(" | ")" | "{" | "}" => self.scan_delimiter(lexeme.to_string())?,
+                "=" | "+" | "-" | "/" | "*" | "!" | ">" | "<" | "&" | "|" => {
+                    self.scan_op(lexeme.to_string())?
+                }
                 "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" => self.scan_num_lit()?,
                 "\"" => self.scan_string_lit()?,
                 _ => self.scan_keyword()?,

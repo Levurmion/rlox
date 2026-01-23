@@ -2,15 +2,16 @@
 pub enum DelimToken {
     Semicolon,
     EoF,
-}
+    Comma,
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum OpToken {
     LeftParen,
     RightParen,
     LeftBrace,
     RightBrace,
+}
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum OpToken {
     // arithmetic
     Plus,
     Min,
@@ -61,6 +62,7 @@ pub enum KeywordToken {
     // bool literals
     True,
     False,
+    Nil,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
