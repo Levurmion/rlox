@@ -67,7 +67,7 @@ impl Compiler {
                 expression,
             } => {
                 self.compile_ast(expression)?;
-                self.add_instruction(OpCode::SetVar, token);
+                self.add_instruction(OpCode::SetGlobalVar, token);
                 self.add_constant(ConstValue::String(identifier.clone()), token);
             }
             AstNode::AssignmentDecl {
@@ -78,12 +78,12 @@ impl Compiler {
                 TokenClass::Op(op) => match op {
                     OpToken::Eq => {
                         self.compile_ast(expression)?;
-                        self.add_instruction(OpCode::SetVar, token);
+                        self.add_instruction(OpCode::SetGlobalVar, token);
                         self.add_constant(ConstValue::String(identifier.clone()), token);
                     }
                     OpToken::MinEq | OpToken::PlusEq | OpToken::StarEq | OpToken::SlashEq => {
                         // First, get the current value of the variable
-                        self.add_instruction(OpCode::GetVar, token);
+                        self.add_instruction(OpCode::GetGlobalVar, token);
                         self.add_constant(ConstValue::String(identifier.clone()), token);
 
                         // Then, compile the new expression
@@ -99,7 +99,7 @@ impl Compiler {
                         }
 
                         // Finally, set the variable with the new value
-                        self.add_instruction(OpCode::SetVar, token);
+                        self.add_instruction(OpCode::SetGlobalVar, token);
                         self.add_constant(ConstValue::String(identifier.clone()), token);
                     }
                     _ => return Err(CompilerError::ExpectedReassignmentOperator),
@@ -120,7 +120,6 @@ impl Compiler {
                 self.compile_ast(expression)?;
                 self.add_instruction(OpCode::Pop, token);
             }
-
             AstNode::NumericLit { token, value } => {
                 self.add_instruction(OpCode::Constant, token);
                 self.add_constant(ConstValue::Number(*value), token);
@@ -146,7 +145,7 @@ impl Compiler {
                 }
             }
             AstNode::IdentifierAccessExpr { token, identifier } => {
-                self.add_instruction(OpCode::GetVar, token);
+                self.add_instruction(OpCode::GetGlobalVar, token);
                 self.add_constant(ConstValue::String(identifier.clone()), token);
             }
             AstNode::BinaryExpr { token, left, right } => {

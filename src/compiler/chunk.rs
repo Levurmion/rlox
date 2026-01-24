@@ -34,7 +34,7 @@ impl fmt::Display for Chunk {
                     break;
                 }
                 Some(op_code) => match op_code {
-                    OpCode::Constant | OpCode::GetVar | OpCode::SetVar => {
+                    OpCode::Constant | OpCode::GetGlobalVar | OpCode::SetGlobalVar => {
                         let constant_index = self.code[i + 1];
                         writeln!(
                             f,

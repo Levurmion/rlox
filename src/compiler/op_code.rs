@@ -4,8 +4,8 @@ use core::fmt;
 #[repr(usize)]
 pub enum OpCode {
     Constant,
-    SetVar,
-    GetVar,
+    SetGlobalVar,
+    GetGlobalVar,
     Print,
     Return,
 
@@ -34,8 +34,8 @@ impl OpCode {
     pub fn from_usize(byte: usize) -> Option<OpCode> {
         match byte {
             0 => Some(OpCode::Constant),
-            1 => Some(OpCode::SetVar),
-            2 => Some(OpCode::GetVar),
+            1 => Some(OpCode::SetGlobalVar),
+            2 => Some(OpCode::GetGlobalVar),
             3 => Some(OpCode::Print),
             4 => Some(OpCode::Return),
             5 => Some(OpCode::Add),
@@ -68,8 +68,8 @@ impl fmt::Display for OpCode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let name = match self {
             OpCode::Constant => "Constant",
-            OpCode::SetVar => "SetVar",
-            OpCode::GetVar => "GetVar",
+            OpCode::SetGlobalVar => "SetGlobalVar",
+            OpCode::GetGlobalVar => "GetGlobalVar",
             OpCode::Print => "Print",
             OpCode::Return => "Return",
             OpCode::Add => "Add",

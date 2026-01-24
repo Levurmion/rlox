@@ -41,7 +41,7 @@ pub enum InterpreterError {
 pub struct Interpreter {
     stdout: Option<String>,
     interner: Interner,
-    variables: HashMap<InternedString, LoxValue>,
+    globals: HashMap<InternedString, LoxValue>,
     stack: Vec<LoxValue>,
     ip: usize,
 }
@@ -51,7 +51,7 @@ impl Interpreter {
         Interpreter {
             stdout: None,
             interner: Interner::new(),
-            variables: HashMap::new(),
+            globals: HashMap::new(),
             stack: Vec::with_capacity(1024),
             ip: 0,
         }
@@ -130,7 +130,7 @@ impl Interpreter {
                         self.ip += 1;
                     }
                 },
-                OpCode::SetVar => {
+                OpCode::SetGlobalVar => {
                     self.interpret_instruction_with_constant(
                         chunk,
                         |vm, constant| match constant {
@@ -141,18 +141,17 @@ impl Interpreter {
                                         return Err(RuntimeError::ExpectedExpression);
                                     }
                                 };
-                                vm.variables
-                                    .insert(vm.interner.intern(var_name), expr_value);
+                                vm.globals.insert(vm.interner.intern(var_name), expr_value);
                                 Ok(())
                             }
                             _ => Err(RuntimeError::InvalidIdentifier),
                         },
                     )?;
                 }
-                OpCode::GetVar => {
+                OpCode::GetGlobalVar => {
                     self.interpret_instruction_with_constant(chunk, |vm, constant| match constant {
                         ConstValue::String(var_name) => {
-                            match vm.variables.get(&vm.interner.intern(var_name)) {
+                            match vm.globals.get(&vm.interner.intern(var_name)) {
                                 Some(value) => {
                                     vm.stack.push(value.clone());
                                     Ok(())
