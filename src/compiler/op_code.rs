@@ -4,8 +4,11 @@ use core::fmt;
 #[repr(usize)]
 pub enum OpCode {
     Constant,
-    SetGlobalVar,
-    GetGlobalVar,
+    SetGlobalVar, // CONST for variable name
+    GetGlobalVar, // CONST for variable name
+    SetLocalVar,  // CONST for local variable position on stack
+    GetLocalVar,  // CONST for local variable position on stack
+
     Print,
     Return,
 
@@ -36,24 +39,26 @@ impl OpCode {
             0 => Some(OpCode::Constant),
             1 => Some(OpCode::SetGlobalVar),
             2 => Some(OpCode::GetGlobalVar),
-            3 => Some(OpCode::Print),
-            4 => Some(OpCode::Return),
-            5 => Some(OpCode::Add),
-            6 => Some(OpCode::Subtract),
-            7 => Some(OpCode::Multiply),
-            8 => Some(OpCode::Divide),
-            9 => Some(OpCode::Negate),
-            10 => Some(OpCode::Equals),
-            11 => Some(OpCode::NotEquals),
-            12 => Some(OpCode::GreaterThan),
-            13 => Some(OpCode::LessThan),
-            14 => Some(OpCode::GreaterThanEq),
-            15 => Some(OpCode::LessThanEq),
-            16 => Some(OpCode::Not),
-            17 => Some(OpCode::And),
-            18 => Some(OpCode::Or),
-            19 => Some(OpCode::Pop),
-            20 => Some(OpCode::Jump),
+            3 => Some(OpCode::SetLocalVar),
+            4 => Some(OpCode::GetLocalVar),
+            5 => Some(OpCode::Print),
+            6 => Some(OpCode::Return),
+            7 => Some(OpCode::Add),
+            8 => Some(OpCode::Subtract),
+            9 => Some(OpCode::Multiply),
+            10 => Some(OpCode::Divide),
+            11 => Some(OpCode::Negate),
+            12 => Some(OpCode::Equals),
+            13 => Some(OpCode::NotEquals),
+            14 => Some(OpCode::GreaterThan),
+            15 => Some(OpCode::LessThan),
+            16 => Some(OpCode::GreaterThanEq),
+            17 => Some(OpCode::LessThanEq),
+            18 => Some(OpCode::Not),
+            19 => Some(OpCode::And),
+            20 => Some(OpCode::Or),
+            21 => Some(OpCode::Pop),
+            22 => Some(OpCode::Jump),
             _ => None,
         }
     }
@@ -70,6 +75,8 @@ impl fmt::Display for OpCode {
             OpCode::Constant => "Constant",
             OpCode::SetGlobalVar => "SetGlobalVar",
             OpCode::GetGlobalVar => "GetGlobalVar",
+            OpCode::SetLocalVar => "SetLocalVar",
+            OpCode::GetLocalVar => "GetLocalVar",
             OpCode::Print => "Print",
             OpCode::Return => "Return",
             OpCode::Add => "Add",

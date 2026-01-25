@@ -10,7 +10,7 @@ use crate::{
 pub struct Chunk {
     pub code: Vec<usize>,
     pub constants: Vec<ConstValue>,
-    pub tokens: Vec<Token>,
+    pub tokens: Vec<Option<Token>>,
 }
 
 impl Chunk {
@@ -34,11 +34,15 @@ impl fmt::Display for Chunk {
                     break;
                 }
                 Some(op_code) => match op_code {
-                    OpCode::Constant | OpCode::GetGlobalVar | OpCode::SetGlobalVar => {
+                    OpCode::Constant
+                    | OpCode::GetGlobalVar
+                    | OpCode::SetGlobalVar
+                    | OpCode::SetLocalVar
+                    | OpCode::GetLocalVar => {
                         let constant_index = self.code[i + 1];
                         writeln!(
                             f,
-                            "{:04} {: <10} {:04} ({})",
+                            "{:04} {: <16} {:04} ({})",
                             i,
                             op_code.to_string(),
                             constant_index,

@@ -162,6 +162,32 @@ impl Interpreter {
                         _ => Err(RuntimeError::InvalidIdentifier),
                     })
                 }?,
+                OpCode::SetLocalVar => {
+                    let local_index = chunk.code[self.ip + 1];
+                    let value = match self.stack.pop() {
+                        Some(value) => value,
+                        None => {
+                            return Err(RuntimeError::ExpectedExpression);
+                        }
+                    };
+                    if self.stack.len() == local_index {
+                        self.stack.push(value);
+                    } else {
+                        self.stack[local_index] = value;
+                    }
+                    self.ip += 2;
+                }
+                OpCode::GetLocalVar => {
+                    let local_index = chunk.code[self.ip + 1];
+                    let value = match self.stack.get(local_index) {
+                        Some(value) => value.clone(),
+                        None => {
+                            return Err(RuntimeError::UninitialisedVariable);
+                        }
+                    };
+                    self.stack.push(value);
+                    self.ip += 2;
+                }
                 OpCode::Constant => {
                     self.interpret_instruction_with_constant(chunk, |vm, constant| {
                         let lox_value: LoxValue = match constant {
@@ -275,18 +301,13 @@ impl Interpreter {
             }
             Some(value) => value,
         };
-        match to_print {
-            LoxValue::Number(num) => {
-                self.stdout = Some(num.to_string());
-            }
-            LoxValue::String(s) => {
-                self.stdout = Some(self.interner.resolve(s).to_string());
-            }
-            LoxValue::Boolean(b) => {
-                self.stdout = Some(b.to_string());
-            }
+        let val = match to_print {
+            LoxValue::Number(num) => num.to_string(),
+            LoxValue::String(s) => self.interner.resolve(s).to_string(),
+            LoxValue::Boolean(b) => b.to_string(),
             LoxValue::Object(_) => todo!(),
-        }
+        };
+        println!("{}", val);
         self.ip += 1;
         Ok(())
     }
@@ -302,7 +323,7 @@ impl Evaluator for Interpreter {
             },
             Err(err) => match err {
                 InterpreterError::Runtime((runtime_error, chunk)) => {
-                    Err(format!("{:#?} \n\n{}", runtime_error, chunk))
+                    Err(format!("{:#?} \n\n{}", runtime_error, chunk.to_string()))
                 }
                 InterpreterError::Compiler(compiler_error) => {
                     Err(format!("compile error: {:#?}", compiler_error))

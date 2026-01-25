@@ -155,7 +155,10 @@ impl<'a> Parser<'a> {
     fn parse_block(&mut self) -> ParseResult {
         let block_token = self.consume_expecting(TokenClass::Delim(DelimToken::LeftBrace))?;
         let mut declarations: Vec<Box<AstNode>> = Vec::new();
-        while self.peek()?.token_class != TokenClass::Delim(DelimToken::RightBrace) {
+        while !matches!(
+            self.peek()?.token_class,
+            TokenClass::Delim(DelimToken::RightBrace | DelimToken::EoF)
+        ) {
             match self.parse_decl() {
                 Ok(decl) => declarations.push(decl),
                 Err(_) => {

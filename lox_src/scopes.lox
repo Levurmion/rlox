@@ -1,0 +1,14 @@
+let x = 2;
+{
+    print x;
+    let y = 5;
+    {
+        print x * y;
+    }
+
+    print y;
+}
+let y = 3;
+
+print "result";
+print x * y;
