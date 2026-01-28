@@ -31,6 +31,7 @@ pub enum OpCode {
 
     Pop,
     Jump,
+    JumpIfFalse,
 }
 
 impl OpCode {
@@ -59,6 +60,7 @@ impl OpCode {
             20 => Some(OpCode::Or),
             21 => Some(OpCode::Pop),
             22 => Some(OpCode::Jump),
+            23 => Some(OpCode::JumpIfFalse),
             _ => None,
         }
     }
@@ -95,6 +97,7 @@ impl fmt::Display for OpCode {
             OpCode::Or => "Or",
             OpCode::Pop => "Pop",
             OpCode::Jump => "Jump",
+            OpCode::JumpIfFalse => "JumpIfFalse",
         };
         write!(f, "{}", name)
     }

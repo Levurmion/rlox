@@ -1,0 +1,12 @@
+let x = 2;
+
+if (x == 2) {
+    print "x is 2";
+    let y = "local variable";
+    if (x - 2 == 0) {
+        print "x is really 2";
+    }
+    print y;
+} else {
+    print "x is not 2";
+}

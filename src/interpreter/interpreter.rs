@@ -26,7 +26,7 @@ pub enum RuntimeError {
     ExpectedExpression,
     UninitialisedVariable,
     ExpectedNumberType,
-    ExpectedBooleanType,
+    ExpectedBooleanExpression,
     InvalidBinaryOperation,
 }
 
@@ -80,6 +80,8 @@ impl Interpreter {
             Ok(chunk) => chunk,
         };
 
+        println!("{}", chunk.to_string());
+
         match self.interpret_chunk(chunk) {
             Err(err) => return Err(InterpreterError::Runtime((err, chunk.clone()))),
             Ok(()) => match &self.stdout {
@@ -124,7 +126,7 @@ impl Interpreter {
                                 self.stack.push(LoxValue::Boolean(!operand))
                             }
                             _ => {
-                                return Err(RuntimeError::ExpectedBooleanType);
+                                return Err(RuntimeError::ExpectedBooleanExpression);
                             }
                         }
                         self.ip += 1;
@@ -218,6 +220,28 @@ impl Interpreter {
                 | OpCode::LessThanEq
                 | OpCode::And
                 | OpCode::Or => self.interpret_binary_op(op_code)?,
+                OpCode::Jump => {
+                    let jump_offset = chunk.code[self.ip + 1];
+                    self.ip += jump_offset;
+                }
+                OpCode::JumpIfFalse => {
+                    let jump_offset = chunk.code[self.ip + 1];
+                    let condition = match self.stack.last() {
+                        None => return Err(RuntimeError::ExpectedExpression),
+                        Some(value) => value,
+                    };
+                    match condition {
+                        LoxValue::Boolean(false) => {
+                            self.ip += jump_offset;
+                        }
+                        LoxValue::Boolean(true) => {
+                            self.ip += 2;
+                        }
+                        _ => {
+                            return Err(RuntimeError::ExpectedBooleanExpression);
+                        }
+                    }
+                }
                 _ => todo!(),
             }
         }

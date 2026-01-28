@@ -87,8 +87,7 @@ pub enum AstNode {
     IfStmt {
         token: Token,
         condition: Box<AstNode>,
-        if_branch: Box<AstNode>,
-        else_if_branches: Vec<Box<AstNode>>,
+        then_branch: Box<AstNode>,
         else_branch: Option<Box<AstNode>>,
     },
     ElseIfStmt {

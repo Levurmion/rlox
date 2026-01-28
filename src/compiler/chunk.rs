@@ -34,11 +34,7 @@ impl fmt::Display for Chunk {
                     break;
                 }
                 Some(op_code) => match op_code {
-                    OpCode::Constant
-                    | OpCode::GetGlobalVar
-                    | OpCode::SetGlobalVar
-                    | OpCode::SetLocalVar
-                    | OpCode::GetLocalVar => {
+                    OpCode::Constant | OpCode::GetGlobalVar | OpCode::SetGlobalVar => {
                         let constant_index = self.code[i + 1];
                         writeln!(
                             f,
@@ -47,6 +43,29 @@ impl fmt::Display for Chunk {
                             op_code.to_string(),
                             constant_index,
                             self.constants[constant_index]
+                        )?;
+                        i += 2;
+                    }
+                    OpCode::SetLocalVar | OpCode::GetLocalVar => {
+                        let local_index = self.code[i + 1];
+                        writeln!(
+                            f,
+                            "{:04} {: <16} {:04}",
+                            i,
+                            op_code.to_string(),
+                            local_index,
+                        )?;
+                        i += 2;
+                    }
+                    OpCode::Jump | OpCode::JumpIfFalse => {
+                        let jump_offset = self.code[i + 1];
+                        writeln!(
+                            f,
+                            "{:04} {: <16} {:04} (to {:04})",
+                            i,
+                            op_code.to_string(),
+                            jump_offset,
+                            i + jump_offset
                         )?;
                         i += 2;
                     }

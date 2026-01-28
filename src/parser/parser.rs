@@ -254,7 +254,11 @@ impl<'a> Parser<'a> {
                 if matches!(
                     self.lookahead(1)?.token_class,
                     TokenClass::Op(
-                        OpToken::PlusEq | OpToken::MinEq | OpToken::SlashEq | OpToken::StarEq,
+                        OpToken::PlusEq
+                            | OpToken::MinEq
+                            | OpToken::SlashEq
+                            | OpToken::StarEq
+                            | OpToken::Eq,
                     )
                 ) =>
             {
@@ -273,6 +277,7 @@ impl<'a> Parser<'a> {
             token: token.clone(),
             expression: expr,
         }));
+        debug!("parsed expr stmt");
         self.consume_expecting(TokenClass::Delim(DelimToken::Semicolon))?;
         result
     }
@@ -282,7 +287,9 @@ impl<'a> Parser<'a> {
         let reassignment_token = self.consume()?;
         if !matches!(
             reassignment_token.token_class,
-            TokenClass::Op(OpToken::PlusEq | OpToken::MinEq | OpToken::SlashEq | OpToken::StarEq)
+            TokenClass::Op(
+                OpToken::PlusEq | OpToken::MinEq | OpToken::SlashEq | OpToken::StarEq | OpToken::Eq
+            )
         ) {
             self.errors.push(ParserError::ExpectedReassignmentOperator {
                 token: reassignment_token,
@@ -322,40 +329,24 @@ impl<'a> Parser<'a> {
     fn parse_if_stmt(&mut self) -> ParseResult {
         let if_token = self.consume_expecting(TokenClass::Keyword(KeywordToken::If))?;
 
-        // if branch
+        // then branch
         self.consume_expecting(TokenClass::Delim(DelimToken::LeftParen))?;
         let condition = self.parse_expr(0.0)?;
         self.consume_expecting(TokenClass::Delim(DelimToken::RightParen))?;
-        let if_branch = self.parse_block()?;
-
-        // else if branches
-        let mut else_if_branches: Vec<Box<AstNode>> = Vec::new();
-        let mut else_branch: Option<Box<AstNode>> = None;
-        while self.peek()?.token_class == TokenClass::Keyword(KeywordToken::Else) {
-            self.consume_expecting(TokenClass::Keyword(KeywordToken::Else))?;
-            if self.peek()?.token_class == TokenClass::Keyword(KeywordToken::If) {
-                let else_if_token =
-                    self.consume_expecting(TokenClass::Keyword(KeywordToken::If))?;
-                self.consume_expecting(TokenClass::Delim(DelimToken::LeftParen))?;
-                let else_if_condition = self.parse_expr(0.0)?;
-                self.consume_expecting(TokenClass::Delim(DelimToken::RightParen))?;
-                let else_if_branch = self.parse_block()?;
-                else_if_branches.push(Box::new(AstNode::ElseIfStmt {
-                    token: else_if_token.clone(),
-                    condition: else_if_condition,
-                    body: else_if_branch,
-                }));
-            } else {
-                else_branch = Some(self.parse_block()?);
-                break;
+        let then_branch = self.parse_block()?;
+        // else branch
+        let else_branch: Option<Box<AstNode>> = match self.peek()?.token_class {
+            TokenClass::Keyword(KeywordToken::Else) => {
+                self.consume_expecting(TokenClass::Keyword(KeywordToken::Else))?;
+                Some(self.parse_block()?)
             }
-        }
+            _ => None,
+        };
 
         Ok(Box::new(AstNode::IfStmt {
             token: if_token,
             condition,
-            if_branch,
-            else_if_branches,
+            then_branch,
             else_branch,
         }))
     }

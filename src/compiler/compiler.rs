@@ -84,6 +84,49 @@ impl Compiler {
         None
     }
 
+    fn compile_set_local_variable(&mut self, name: &str) {
+        match self.resolve_local(name) {
+            Some((local_index, ..)) => {
+                self.add_instruction(OpCode::SetLocalVar, None);
+                self.chunk.code.push(local_index);
+                self.chunk.tokens.push(None);
+            }
+            None => {
+                // then probably in global scope
+                self.add_instruction(OpCode::SetGlobalVar, None);
+                self.add_constant(ConstValue::String(name.to_string()), None);
+            }
+        }
+    }
+
+    fn compile_block(
+        &mut self,
+        declarations: &Vec<Box<AstNode>>,
+        scope_depth: usize,
+    ) -> Result<(), CompilerError> {
+        for decl in declarations {
+            self.compile_ast(decl, scope_depth + 1)?;
+        }
+
+        if self.locals.len() <= 0 {
+            return Ok(());
+        }
+
+        let mut i = self.locals.len() - 1;
+        loop {
+            if self.locals[i].depth > scope_depth {
+                self.locals.pop();
+                self.add_instruction(OpCode::Pop, None);
+            }
+            if i == 0 {
+                break;
+            }
+            i -= 1;
+        }
+
+        Ok(())
+    }
+
     fn compile_ast(
         &mut self,
         ast_node: &Box<AstNode>,
@@ -144,12 +187,17 @@ impl Compiler {
             } => match &token.token_class {
                 TokenClass::Op(op) => match op {
                     OpToken::Eq => {
-                        self.compile_ast(expression, scope_depth)?;
-                        self.add_instruction(OpCode::SetGlobalVar, Some(token.clone()));
-                        self.add_constant(
-                            ConstValue::String(identifier.clone()),
-                            Some(token.clone()),
-                        );
+                        if scope_depth == 0 {
+                            self.compile_ast(expression, scope_depth)?;
+                            self.add_instruction(OpCode::SetGlobalVar, Some(token.clone()));
+                            self.add_constant(
+                                ConstValue::String(identifier.clone()),
+                                Some(token.clone()),
+                            );
+                        } else {
+                            self.compile_ast(expression, scope_depth)?;
+                            self.compile_set_local_variable(&identifier);
+                        }
                     }
                     OpToken::MinEq | OpToken::PlusEq | OpToken::StarEq | OpToken::SlashEq => {
                         // First, get the current value of the variable
@@ -188,21 +236,7 @@ impl Compiler {
                             );
                             return Ok(());
                         } else {
-                            self.add_instruction(OpCode::SetLocalVar, Some(token.clone()));
-                            match self.resolve_local(identifier) {
-                                Some((local_index, ..)) => {
-                                    self.chunk.code.push(local_index);
-                                    self.chunk.tokens.push(Some(token.clone()));
-                                }
-                                None => {
-                                    // then probably in global scope
-                                    self.add_instruction(OpCode::SetGlobalVar, Some(token.clone()));
-                                    self.add_constant(
-                                        ConstValue::String(identifier.clone()),
-                                        Some(token.clone()),
-                                    );
-                                }
-                            }
+                            self.compile_set_local_variable(&identifier);
                         }
                     }
                     _ => return Err(CompilerError::ExpectedReassignmentOperator),
@@ -223,6 +257,37 @@ impl Compiler {
                 self.compile_ast(expression, scope_depth)?;
                 self.add_instruction(OpCode::Pop, Some(token.clone()));
             }
+            AstNode::IfStmt {
+                token,
+                condition,
+                then_branch,
+                else_branch,
+            } => {
+                // then branch
+                self.compile_ast(condition, scope_depth)?;
+                let if_false_jump_offset_placeholder_idx =
+                    self.emit_jump(OpCode::JumpIfFalse, Some(token.clone()));
+                self.add_instruction(OpCode::Pop, None); // pop condition result
+                self.compile_ast(then_branch, scope_depth)?;
+
+                // else branch
+                if let Some(else_branch_node) = else_branch {
+                    // prepare unconditional jump statement to skip the else branch
+                    let if_true_jump_placeholder_idx =
+                        self.emit_jump(OpCode::Jump, Some(token.clone()));
+                    self.add_instruction(OpCode::Pop, None); // pop condition result
+                    // backpatch if jump to start of else branch
+                    self.backpatch_jump(if_false_jump_offset_placeholder_idx);
+                    self.compile_ast(else_branch_node, scope_depth)?;
+                    // backpatch unconditional jump to after else branch
+                    self.backpatch_jump(if_true_jump_placeholder_idx);
+                } else {
+                    // backpatch if jump to after then branch
+                    self.backpatch_jump(if_false_jump_offset_placeholder_idx);
+                }
+            }
+
+            // ========== LITERALS ==========
             AstNode::NumericLit { token, value } => {
                 self.add_instruction(OpCode::Constant, Some(token.clone()));
                 self.add_constant(ConstValue::Number(*value), Some(token.clone()));
@@ -304,25 +369,23 @@ impl Compiler {
                     _ => return Err(CompilerError::ExpectedOpNode),
                 }
             }
-            AstNode::Block { declarations, .. } => {
-                for decl in declarations {
-                    self.compile_ast(decl, scope_depth + 1)?;
-                }
-
-                if self.locals.len() <= 0 {
-                    return Ok(());
-                }
-
-                let mut i = self.locals.len() - 1;
-                while i > 0 && self.locals[i].depth > scope_depth {
-                    self.locals.pop();
-                    self.add_instruction(OpCode::Pop, None);
-                    i -= 1;
-                }
-            }
+            AstNode::Block { declarations, .. } => self.compile_block(declarations, scope_depth)?,
             _ => todo!(),
         }
 
         Ok(())
+    }
+
+    fn emit_jump(&mut self, op_code: OpCode, token: Option<Token>) -> usize {
+        self.add_instruction(op_code, token);
+        // placeholder for jump offset
+        self.chunk.code.push(0);
+        self.chunk.tokens.push(None);
+        self.chunk.code.len() - 1
+    }
+
+    fn backpatch_jump(&mut self, jump_placeholder_idx: usize) {
+        let jump_offset = self.chunk.code.len() - jump_placeholder_idx;
+        self.chunk.code[jump_placeholder_idx] = jump_offset + 1;
     }
 }

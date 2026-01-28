@@ -7,8 +7,8 @@ let x = 2;
     }
 
     print y;
+    let x = x;
+    x = 4;
+    print x;
 }
-let y = 3;
-
-print "result";
-print x * y;
+print x;
