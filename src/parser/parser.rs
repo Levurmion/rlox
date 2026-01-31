@@ -106,6 +106,7 @@ impl<'a> Parser<'a> {
     // parsing
     pub fn parse(&mut self) -> Result<Box<AstNode>, Vec<ParserError>> {
         let ast = self.parse_program().unwrap();
+        debug!(ast);
         if self.errors.is_empty() {
             Ok(ast)
         } else {

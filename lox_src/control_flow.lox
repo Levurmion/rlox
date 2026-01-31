@@ -1,7 +1,7 @@
-let x = 2;
+let x = 4;
 
-if (x == 2) {
-    print "x is 2";
+if (x == 2 || x == 4) {
+    print "x is 2 or 4";
     let y = "local variable";
     if (x - 2 == 0) {
         print "x is really 2";

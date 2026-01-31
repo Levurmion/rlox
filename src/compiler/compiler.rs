@@ -338,6 +338,11 @@ impl Compiler {
             }
             AstNode::BinaryExpr { token, left, right } => {
                 self.compile_ast(left, scope_depth)?;
+                let mut jump_if_false_idx = None;
+                if token.token_class != TokenClass::Op(OpToken::And) {
+                    jump_if_false_idx = self.emit_jump(OpCode::JumpIfFalse, None);
+                    self.add_instruction(OpCode::Pop, None);
+                }
                 self.compile_ast(right, scope_depth)?;
 
                 match &token.token_class {
@@ -362,7 +367,10 @@ impl Compiler {
                         OpToken::Leq => {
                             self.add_instruction(OpCode::LessThanEq, Some(token.clone()))
                         }
-                        OpToken::And => self.add_instruction(OpCode::And, Some(token.clone())),
+                        OpToken::And => {
+                            self.add_instruction(OpCode::And, Some(token.clone()));
+                            self.backpatch_jump(jump_if_false_idx);
+                        }
                         OpToken::Or => self.add_instruction(OpCode::Or, Some(token.clone())),
                         _ => return Err(CompilerError::UnsupportedBinaryOperator),
                     },
